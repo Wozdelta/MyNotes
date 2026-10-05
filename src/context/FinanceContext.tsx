@@ -181,12 +181,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
             try {
               setUser(JSON.parse(savedMock));
             } catch {
-              setUser({ id: 'demo_user_01', email: 'demo@financaspro.com.br', full_name: 'Usuário Demonstração' });
+              setUser(null);
             }
           } else {
-            const defaultUser = { id: 'demo_user_01', email: 'demo@financaspro.com.br', full_name: 'Usuário Demonstração' };
-            setUser(defaultUser);
-            localStorage.setItem('financas_pro_active_user', JSON.stringify(defaultUser));
+            setUser(null);
           }
         }
       }

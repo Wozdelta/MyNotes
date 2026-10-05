@@ -7,7 +7,6 @@ import { NoteModal } from './components/modals/NoteModal';
 import { RecurrenceModal } from './components/modals/RecurrenceModal';
 import { TransactionModal } from './components/modals/TransactionModal';
 import { TransferModal } from './components/modals/TransferModal';
-import { OnboardingTour } from './components/common/OnboardingTour';
 import { FinanceProvider, useFinance } from './context/FinanceContext';
 import { AccountsPage } from './pages/AccountsPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
@@ -220,9 +219,7 @@ const MainApp: React.FC = () => {
         convertingNote={convertingNote}
       />
 
-      {/* Toasts */}
       <ToastContainer />
-      <OnboardingTour />
     </div>
   );
 };

@@ -51,33 +51,6 @@ function getLocalState(userId: string): LocalDBState {
     }
   }
 
-  // Estado inicial padrão para novos usuários
-  const today = todayString();
-  const year = today.split('-')[0];
-  const month = today.split('-')[1];
-
-  const defaultAcc1: Account = {
-    id: generateUUID(),
-    user_id: userId,
-    name: 'Conta Corrente Principal',
-    initial_balance: 3500.0,
-    initial_balance_date: `${year}-${month}-01`,
-    is_archived: false,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  };
-
-  const defaultAcc2: Account = {
-    id: generateUUID(),
-    user_id: userId,
-    name: 'Reserva Financeira',
-    initial_balance: 10000.0,
-    initial_balance_date: `${year}-${month}-01`,
-    is_archived: false,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  };
-
   const defaultCategories: Category[] = DEFAULT_CATEGORIES.map(c => ({
     id: generateUUID(),
     user_id: userId,
@@ -89,160 +62,14 @@ function getLocalState(userId: string): LocalDBState {
     updated_at: new Date().toISOString()
   }));
 
-  const catSalario = defaultCategories.find(c => c.name === 'Salário')?.id || defaultCategories[0].id;
-  const catAluguel = defaultCategories.find(c => c.name === 'Moradia')?.id || defaultCategories[5].id;
-  const catAlimentacao = defaultCategories.find(c => c.name === 'Alimentação')?.id || defaultCategories[6].id;
-  const catTransporte = defaultCategories.find(c => c.name === 'Transporte')?.id || defaultCategories[7].id;
-  const catRendaExtra = defaultCategories.find(c => c.name === 'Renda extra')?.id || defaultCategories[1].id;
-
-  const initialRecurrenceSalario: Recurrence = {
-    id: generateUUID(),
-    user_id: userId,
-    account_id: defaultAcc1.id,
-    category_id: catSalario,
-    type: 'income',
-    description: 'Salário Mensal',
-    amount: 6500.0,
-    frequency: 'monthly',
-    interval_step: 1,
-    start_date: `${year}-${month}-05`,
-    day_of_month: 5,
-    notes: 'Depósito regular dia 5',
-    is_active: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  };
-
-  const initialRecurrenceAluguel: Recurrence = {
-    id: generateUUID(),
-    user_id: userId,
-    account_id: defaultAcc1.id,
-    category_id: catAluguel,
-    type: 'expense',
-    description: 'Aluguel do Apartamento',
-    amount: 1850.0,
-    frequency: 'monthly',
-    interval_step: 1,
-    start_date: `${year}-${month}-10`,
-    day_of_month: 10,
-    notes: 'Boleto mensal',
-    is_active: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  };
-
-  const initialTransactions: Transaction[] = [
-    {
-      id: generateUUID(),
-      user_id: userId,
-      account_id: defaultAcc1.id,
-      category_id: catSalario,
-      type: 'income',
-      description: 'Salário Mensal',
-      amount: 6500.0,
-      expected_date: `${year}-${month}-05`,
-      effective_date: `${year}-${month}-05`,
-      status: 'completed',
-      recurrence_id: initialRecurrenceSalario.id,
-      recurrence_index: 1,
-      is_recurrent: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    },
-    {
-      id: generateUUID(),
-      user_id: userId,
-      account_id: defaultAcc1.id,
-      category_id: catAluguel,
-      type: 'expense',
-      description: 'Aluguel do Apartamento',
-      amount: 1850.0,
-      expected_date: `${year}-${month}-10`,
-      effective_date: `${year}-${month}-10`,
-      status: 'completed',
-      recurrence_id: initialRecurrenceAluguel.id,
-      recurrence_index: 1,
-      is_recurrent: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    },
-    {
-      id: generateUUID(),
-      user_id: userId,
-      account_id: defaultAcc1.id,
-      category_id: catAlimentacao,
-      type: 'expense',
-      description: 'Supermercado da Quinzena',
-      amount: 620.45,
-      expected_date: `${year}-${month}-12`,
-      effective_date: `${year}-${month}-12`,
-      status: 'completed',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    },
-    {
-      id: generateUUID(),
-      user_id: userId,
-      account_id: defaultAcc1.id,
-      category_id: catTransporte,
-      type: 'expense',
-      description: 'Combustível do Carro',
-      amount: 250.0,
-      expected_date: `${year}-${month}-18`,
-      status: 'pending',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    },
-    {
-      id: generateUUID(),
-      user_id: userId,
-      account_id: defaultAcc1.id,
-      category_id: catRendaExtra,
-      type: 'income',
-      description: 'Consultoria de Software',
-      amount: 1500.0,
-      expected_date: `${year}-${month}-25`,
-      status: 'pending',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }
-  ];
-
-  const initialNotes: FinancialNote[] = [
-    {
-      id: generateUUID(),
-      user_id: userId,
-      title: 'Manutenção e Troca dos Pneus',
-      type: 'possible_expense',
-      estimated_amount: 1200.0,
-      category_id: catTransporte,
-      notes: 'Orçado na oficina central, aguardando confirmação',
-      status: 'open',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    },
-    {
-      id: generateUUID(),
-      user_id: userId,
-      title: 'Projeto Freelance Website',
-      type: 'possible_income',
-      estimated_amount: 3200.0,
-      category_id: catRendaExtra,
-      notes: 'Cliente em fase final de aprovação da proposta',
-      status: 'open',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }
-  ];
-
   const state: LocalDBState = {
-    accounts: [defaultAcc1, defaultAcc2],
+    accounts: [],
     categories: defaultCategories,
-    transactions: initialTransactions,
-    recurrences: [initialRecurrenceSalario, initialRecurrenceAluguel],
+    transactions: [],
+    recurrences: [],
     recurrenceExceptions: [],
     transfers: [],
-    notes: initialNotes
+    notes: []
   };
 
   saveLocalState(userId, state);

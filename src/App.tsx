@@ -74,8 +74,8 @@ const MainApp: React.FC = () => {
     );
   }
 
-  // Se Supabase estiver ativado e o usuário não estiver autenticado, exibe tela de login/cadastro
-  if (!isAuthenticated && isSupabaseOnline) {
+  // Se o usuário não estiver autenticado, exibe tela de login/cadastro
+  if (!isAuthenticated) {
     return <AuthPage />;
   }
 

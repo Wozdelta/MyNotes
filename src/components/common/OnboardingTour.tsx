@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import Joyride, { CallBackProps, STATUS, Step } from 'react-joyride';
+import { Joyride, EventData, STATUS, Step } from 'react-joyride';
 
 export const OnboardingTour: React.FC = () => {
   const [run, setRun] = useState(false);
@@ -11,7 +11,7 @@ export const OnboardingTour: React.FC = () => {
     }
   }, []);
 
-  const handleJoyrideCallback = (data: CallBackProps) => {
+  const handleJoyrideCallback = (data: EventData) => {
     const { status } = data;
     const finishedStatuses: string[] = [STATUS.FINISHED, STATUS.SKIPPED];
 
@@ -27,7 +27,7 @@ export const OnboardingTour: React.FC = () => {
       placement: 'center',
       title: 'Bem-vindo ao MyNotes! 🎉',
       content: 'Vamos fazer um tour rápido para você conhecer as principais funcionalidades e tirar o máximo de proveito do nosso sistema.',
-      disableBeacon: true,
+      skipBeacon: true,
     },
     {
       target: '.tour-step-dashboard',
@@ -65,23 +65,22 @@ export const OnboardingTour: React.FC = () => {
       run={run}
       continuous={true}
       scrollToFirstStep={true}
-      showProgress={true}
-      showSkipButton={true}
-      callback={handleJoyrideCallback}
+      onEvent={handleJoyrideCallback}
+      options={{
+        showProgress: true,
+        primaryColor: 'var(--primary-color)',
+        textColor: 'var(--text-main)',
+        backgroundColor: 'var(--bg-card)',
+        arrowColor: 'var(--bg-card)',
+        overlayColor: 'rgba(0, 0, 0, 0.5)',
+        zIndex: 1000,
+      }}
       styles={{
-        options: {
-          primaryColor: 'var(--primary-color)',
-          textColor: 'var(--text-main)',
-          backgroundColor: 'var(--bg-card)',
-          arrowColor: 'var(--bg-card)',
-          overlayColor: 'rgba(0, 0, 0, 0.5)',
-          zIndex: 1000,
-        },
         tooltip: {
           borderRadius: 'var(--radius-md)',
           boxShadow: 'var(--shadow-lg)',
         },
-        buttonNext: {
+        buttonPrimary: {
           backgroundColor: 'var(--primary-color)',
           borderRadius: 'var(--radius-sm)',
         },

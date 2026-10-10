@@ -12,7 +12,7 @@ import {
   Transfer,
   UserProfile
 } from '../types';
-import { getEndOfMonth, getPreviousMonthRange, getStartOfMonth, todayString } from '../utils/date';
+import { addDays, getEndOfMonth, getPreviousMonthRange, getStartOfMonth, todayString } from '../utils/date';
 import { calculateFinancialSummary } from '../utils/finance';
 
 interface ToastMessage {
@@ -47,7 +47,7 @@ interface FinanceContextType {
 
   // Periods & Summary
   periodFilter: PeriodFilter;
-  setPeriodMode: (mode: 'current_month' | 'previous_month' | 'custom', customStart?: string, customEnd?: string) => void;
+  setPeriodMode: (mode: 'current_month' | 'previous_month' | 'custom' | 'next_30' | 'next_60' | 'next_120', customStart?: string, customEnd?: string) => void;
   setDateBase: (dateBase: 'expected' | 'effective') => void;
   summary: FinancialSummary;
 
@@ -356,7 +356,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Funções de Período
   const setPeriodMode = (
-    mode: 'current_month' | 'previous_month' | 'custom',
+    mode: 'current_month' | 'previous_month' | 'custom' | 'next_30' | 'next_60' | 'next_120',
     customStart?: string,
     customEnd?: string
   ) => {
@@ -375,6 +375,27 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         mode: 'previous_month',
         startDate: prevRange.start,
         endDate: prevRange.end
+      }));
+    } else if (mode === 'next_30') {
+      setPeriodFilter(prev => ({
+        ...prev,
+        mode,
+        startDate: now,
+        endDate: addDays(now, 30)
+      }));
+    } else if (mode === 'next_60') {
+      setPeriodFilter(prev => ({
+        ...prev,
+        mode,
+        startDate: now,
+        endDate: addDays(now, 60)
+      }));
+    } else if (mode === 'next_120') {
+      setPeriodFilter(prev => ({
+        ...prev,
+        mode,
+        startDate: now,
+        endDate: addDays(now, 120)
       }));
     } else if (mode === 'custom' && customStart && customEnd) {
       setPeriodFilter(prev => ({

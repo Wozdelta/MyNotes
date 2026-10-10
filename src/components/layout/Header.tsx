@@ -66,7 +66,7 @@ export const Header: React.FC<HeaderProps> = ({
               className="form-select"
               value={periodFilter.mode}
               onChange={e => {
-                const val = e.target.value as 'current_month' | 'previous_month' | 'custom';
+                const val = e.target.value as 'current_month' | 'previous_month' | 'custom' | 'next_30' | 'next_60' | 'next_120';
                 if (val === 'custom') {
                   setShowPeriodModal(true);
                 } else {
@@ -84,6 +84,9 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <option value="current_month">Mês Atual</option>
               <option value="previous_month">Mês Anterior</option>
+              <option value="next_30">Próximos 30 dias</option>
+              <option value="next_60">Próximos 60 dias</option>
+              <option value="next_120">Próximos 120 dias</option>
               <option value="custom">Personalizado...</option>
             </Select>
           </div>

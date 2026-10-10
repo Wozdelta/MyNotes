@@ -34,11 +34,16 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   const today = todayString();
 
   const monthLabel = useMemo(() => {
+    if (periodFilter.mode === 'next_30') return 'Próximos 30 dias';
+    if (periodFilter.mode === 'next_60') return 'Próximos 60 dias';
+    if (periodFilter.mode === 'next_120') return 'Próximos 120 dias';
+    if (periodFilter.mode === 'custom') return 'Período Personalizado';
+
     const [year, month] = periodFilter.startDate.split('-').map(Number);
     const formatted = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' })
       .format(new Date(year, month - 1, 1));
     return formatted.charAt(0).toUpperCase() + formatted.slice(1);
-  }, [periodFilter.startDate]);
+  }, [periodFilter]);
 
   const pendingExpenses = useMemo(() => buildUpcomingExpenseProjection(
     transactions,

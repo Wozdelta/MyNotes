@@ -154,7 +154,7 @@ export interface FinancialSummary {
 }
 
 export interface PeriodFilter {
-  mode: 'current_month' | 'previous_month' | 'custom';
+  mode: 'current_month' | 'previous_month' | 'custom' | 'next_30' | 'next_60' | 'next_120';
   startDate: string; // YYYY-MM-DD
   endDate: string;   // YYYY-MM-DD
   dateBase: 'expected' | 'effective';

@@ -4,6 +4,7 @@ import { useFinance } from '../context/FinanceContext';
 import { Transaction, TransactionType } from '../types';
 import { addMonths, formatDateBR, getDaysInMonth, MONTH_NAMES_BR, padZero, todayString, WEEKDAY_SHORT_NAMES_BR } from '../utils/date';
 import { formatCurrency } from '../utils/finance';
+import { generateRecurrenceDates } from '../utils/recurrenceEngine';
 import '../styles/finance-pages.css';
 
 interface CalendarPageProps {
@@ -12,7 +13,7 @@ interface CalendarPageProps {
 }
 
 export const CalendarPage: React.FC<CalendarPageProps> = ({ onOpenCreateWithDate, onOpenEdit }) => {
-  const { transactions, categories } = useFinance();
+  const { transactions, recurrences, categories } = useFinance();
   const today = todayString();
   const [currentYearMonth, setCurrentYearMonth] = useState(today.slice(0, 7));
   const [selectedDate, setSelectedDate] = useState(today);
@@ -22,14 +23,50 @@ export const CalendarPage: React.FC<CalendarPageProps> = ({ onOpenCreateWithDate
   const categoryMap = new Map(categories.map(c => [c.id, c]));
   const dailyTransactionsMap = useMemo(() => {
     const map = new Map<string, Transaction[]>();
+    const monthEnd = currentYearMonth + '-' + padZero(getDaysInMonth(year, month));
+    
+    // Process existing transactions
+    const existingOccurrenceKeys = new Set<string>();
     for (const t of transactions) {
       if (t.status === 'cancelled') continue;
       const date = calendarDateBase === 'effective' && t.effective_date ? t.effective_date : t.expected_date;
+      if (t.recurrence_id) {
+        existingOccurrenceKeys.add(`${t.recurrence_id}:${date}`);
+      }
       if (!date.startsWith(currentYearMonth)) continue;
       map.set(date, [...(map.get(date) || []), t]);
     }
+
+    // Process future virtual recurrences for this month
+    for (const recurrence of recurrences) {
+      if (!recurrence.is_active) continue;
+      for (const date of generateRecurrenceDates(recurrence, monthEnd)) {
+        if (!date.startsWith(currentYearMonth)) continue;
+        // Avoid duplicating if the user uses a different date base and the expected date moved
+        if (existingOccurrenceKeys.has(`${recurrence.id}:${date}`)) continue;
+        
+        const virtualTx: Transaction = {
+          id: `recurrence-preview:${recurrence.id}:${date}`,
+          user_id: recurrence.user_id,
+          account_id: recurrence.account_id,
+          category_id: recurrence.category_id,
+          type: recurrence.type,
+          description: recurrence.description,
+          amount: recurrence.amount,
+          expected_date: date,
+          status: 'pending',
+          notes: recurrence.notes,
+          recurrence_id: recurrence.id,
+          is_recurrent: true,
+          created_at: recurrence.created_at,
+          updated_at: recurrence.updated_at
+        };
+        map.set(date, [...(map.get(date) || []), virtualTx]);
+      }
+    }
+
     return map;
-  }, [transactions, currentYearMonth, calendarDateBase]);
+  }, [transactions, recurrences, currentYearMonth, calendarDateBase, year, month]);
   const selectedTransactions = dailyTransactionsMap.get(selectedDate) || [];
   const income = selectedTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
   const expense = selectedTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);

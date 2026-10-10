@@ -106,12 +106,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [notes, setNotes] = useState<FinancialNote[]>([]);
 
-  // Filtro de período inicial: mês atual
+  // Filtro de período inicial: próximos 30 dias
   const today = todayString();
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>({
-    mode: 'current_month',
-    startDate: getStartOfMonth(today),
-    endDate: getEndOfMonth(today),
+    mode: 'next_30',
+    startDate: today,
+    endDate: addDays(today, 30),
     dateBase: 'expected'
   });
 

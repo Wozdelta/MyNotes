@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { formatDateBR, getDaysInMonth, padZero, todayString, WEEKDAY_SHORT_NAMES_BR } from '../utils/date';
-import { calculateTotalCurrentBalance, calculateUpcomingNonSalaryIncome, formatCurrency, isOverdue } from '../utils/finance';
+import { buildUpcomingExpenseProjection, calculateTotalCurrentBalance, calculateUpcomingNonSalaryIncome, formatCurrency, fromCents, isOverdue, isVirtualRecurrenceTransaction, toCents } from '../utils/finance';
 
 interface DashboardPageProps {
   onNavigateToTransactions: (filterType?: string) => void;
@@ -29,7 +29,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   onOpenTransfer,
   onOpenCalendar
 }) => {
-  const { summary, transactions, recurrences, categories, accounts, transfers, periodFilter, completeTransaction } = useFinance();
+  const { summary, transactions, recurrences, categories, accounts, transfers, periodFilter, createTransaction, completeTransaction } = useFinance();
   const [showDetails, setShowDetails] = useState(false);
   const today = todayString();
 
@@ -40,21 +40,20 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     return formatted.charAt(0).toUpperCase() + formatted.slice(1);
   }, [periodFilter.startDate]);
 
-  const pendingExpenses = useMemo(() => transactions
-    .filter(transaction =>
-      transaction.type === 'expense' &&
-      transaction.status === 'pending' &&
-      transaction.expected_date >= periodFilter.startDate &&
-      transaction.expected_date <= periodFilter.endDate
-    )
-    .sort((a, b) => a.expected_date.localeCompare(b.expected_date)),
-  [transactions, periodFilter]);
+  const pendingExpenses = useMemo(() => buildUpcomingExpenseProjection(
+    transactions,
+    recurrences,
+    periodFilter.startDate,
+    periodFilter.endDate,
+    today
+  ), [transactions, recurrences, periodFilter, today]);
 
   const categoryMap = useMemo(() => new Map(categories.map(category => [category.id, category])), [categories]);
   const accountMap = useMemo(() => new Map(accounts.map(account => [account.id, account.name])), [accounts]);
   const nextPayment = pendingExpenses[0];
-  const amountMissing = Math.max(0, summary.totalToPay - summary.currentBalance);
-  const amountLeft = Math.max(0, summary.currentBalance - summary.totalToPay);
+  const totalToPay = fromCents(pendingExpenses.reduce((total, transaction) => total + toCents(transaction.amount), 0));
+  const amountMissing = Math.max(0, totalToPay - summary.currentBalance);
+  const amountLeft = Math.max(0, summary.currentBalance - totalToPay);
   const upcomingIncome = useMemo(() => calculateUpcomingNonSalaryIncome(
     transactions,
     recurrences,
@@ -62,7 +61,28 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     periodFilter.endDate,
     today
   ), [transactions, recurrences, periodFilter, today]);
-  const balanceAfterMonth = summary.currentBalance + upcomingIncome - summary.totalToPay;
+  const balanceAfterMonth = summary.currentBalance + upcomingIncome - totalToPay;
+
+  const handleCompletePayment = async () => {
+    if (!nextPayment) return;
+    if (!isVirtualRecurrenceTransaction(nextPayment)) {
+      await completeTransaction(nextPayment.id, today);
+      return;
+    }
+    const created = await createTransaction({
+      account_id: nextPayment.account_id,
+      category_id: nextPayment.category_id,
+      type: 'expense',
+      description: nextPayment.description,
+      amount: nextPayment.amount,
+      expected_date: nextPayment.expected_date,
+      status: 'pending',
+      notes: nextPayment.notes,
+      recurrence_id: nextPayment.recurrence_id,
+      is_recurrent: true
+    });
+    await completeTransaction(created.id, today);
+  };
 
   const calendarData = useMemo(() => {
     const [year, month] = periodFilter.startDate.split('-').map(Number);
@@ -133,7 +153,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         <div className="dashboard-situation-grid">
           <div className="dashboard-mini-stat is-expense">
             <span><CreditCard size={16} /> Preciso pagar</span>
-            <strong>{formatCurrency(summary.totalToPay)}</strong>
+            <strong>{formatCurrency(totalToPay)}</strong>
           </div>
           <div className={`dashboard-mini-stat ${amountMissing > 0 ? 'is-danger' : 'is-positive'}`}>
             <span><TrendingDown size={16} /> {amountMissing > 0 ? 'Ainda preciso conseguir' : 'Sobra depois de pagar'}</span>
@@ -180,7 +200,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
               <strong className="dashboard-payment-value">{formatCurrency(nextPayment.amount)}</strong>
               <button
                 className="dashboard-payment-check"
-                onClick={() => completeTransaction(nextPayment.id, today)}
+                onClick={() => { handleCompletePayment().catch(() => undefined); }}
                 title="Marcar como pago"
                 aria-label={`Marcar ${nextPayment.description} como pago`}
               >
@@ -197,7 +217,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 
         <div className="dashboard-total-line">
           <span>Total a pagar</span>
-          <strong>{formatCurrency(summary.totalToPay)}</strong>
+          <strong>{formatCurrency(totalToPay)}</strong>
         </div>
       </section>
 
@@ -297,7 +317,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                 <button onClick={() => onNavigateToTransactions('all')}>Ver extrato</button>
               </div>
               <div className="dashboard-summary-row"><span>Entradas pendentes (sem salários)</span><strong>{formatCurrency(upcomingIncome)}</strong></div>
-              <div className="dashboard-summary-row"><span>Despesas pendentes</span><strong>{formatCurrency(summary.totalToPay)}</strong></div>
+              <div className="dashboard-summary-row"><span>Despesas pendentes</span><strong>{formatCurrency(totalToPay)}</strong></div>
               <div className="dashboard-summary-row"><span>Resultado previsto</span><strong>{formatCurrency(summary.expectedResult)}</strong></div>
               <div className="dashboard-summary-row"><span>Saldo atual</span><strong>{formatCurrency(summary.currentBalance)}</strong></div>
             </div>

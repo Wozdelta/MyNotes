@@ -6,6 +6,7 @@ import {
   calculateExpectedResult,
   calculateFinancialSummary,
   calculateUpcomingNonSalaryIncome,
+  buildUpcomingExpenseProjection,
   calculateTotalCurrentBalance,
   comparePeriods,
   formatCurrency,
@@ -222,6 +223,22 @@ describe('Centralized Finance Engine Tests', () => {
       status: 'pending', recurrence_id: base.id, created_at: '', updated_at: ''
     };
     expect(calculateUpcomingNonSalaryIncome([generated], [base], '2026-10-01', '2026-10-31', '2026-10-10')).toBe(926.20);
+  });
+
+  it('inclui despesa recorrente ainda não materializada na previsão', () => {
+    const expense: Recurrence = {
+      id: 'college-expense', user_id: 'u-1', account_id: 'a-1', category_id: 'education',
+      type: 'expense', description: 'Faculdade', amount: 684.15,
+      frequency: 'monthly', interval_step: 1, start_date: '2026-10-10',
+      day_of_month: 15, is_active: true, created_at: '', updated_at: ''
+    };
+
+    const projection = buildUpcomingExpenseProjection([], [expense], '2026-10-01', '2026-10-31', '2026-10-10');
+    expect(projection).toHaveLength(1);
+    expect(projection[0]).toMatchObject({ description: 'Faculdade', amount: 684.15, expected_date: '2026-10-15' });
+
+    const materialized: Transaction = { ...projection[0], id: 'tx-expense' };
+    expect(buildUpcomingExpenseProjection([materialized], [expense], '2026-10-01', '2026-10-31', '2026-10-10')).toHaveLength(1);
   });
 
   it('calcula comparação de períodos com proteção contra divisão por zero', () => {

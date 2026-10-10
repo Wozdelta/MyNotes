@@ -322,6 +322,58 @@ export function calculateUpcomingNonSalaryIncome(
   return fromCents(cents);
 }
 
+const VIRTUAL_RECURRENCE_PREFIX = 'recurrence-preview:';
+
+export function isVirtualRecurrenceTransaction(transaction: Transaction): boolean {
+  return transaction.id.startsWith(VIRTUAL_RECURRENCE_PREFIX);
+}
+
+/** Monta as despesas pendentes do período, incluindo recorrências ainda não materializadas. */
+export function buildUpcomingExpenseProjection(
+  transactions: Transaction[],
+  recurrences: Recurrence[],
+  startDate: string,
+  endDate: string,
+  today: string = todayString()
+): Transaction[] {
+  const existingOccurrenceKeys = new Set(
+    transactions
+      .filter(transaction => transaction.recurrence_id)
+      .map(transaction => `${transaction.recurrence_id}:${transaction.expected_date}`)
+  );
+  const projected = transactions.filter(transaction =>
+    transaction.type === 'expense' &&
+    transaction.status === 'pending' &&
+    isDateBetween(transaction.expected_date, startDate, endDate)
+  );
+
+  for (const recurrence of recurrences) {
+    if (!recurrence.is_active || recurrence.type !== 'expense') continue;
+    for (const date of generateRecurrenceDates(recurrence, endDate)) {
+      if (date < today || !isDateBetween(date, startDate, endDate)) continue;
+      if (existingOccurrenceKeys.has(`${recurrence.id}:${date}`)) continue;
+      projected.push({
+        id: `${VIRTUAL_RECURRENCE_PREFIX}${recurrence.id}:${date}`,
+        user_id: recurrence.user_id,
+        account_id: recurrence.account_id,
+        category_id: recurrence.category_id,
+        type: 'expense',
+        description: recurrence.description,
+        amount: recurrence.amount,
+        expected_date: date,
+        status: 'pending',
+        notes: recurrence.notes,
+        recurrence_id: recurrence.id,
+        is_recurrent: true,
+        created_at: recurrence.created_at,
+        updated_at: recurrence.updated_at
+      });
+    }
+  }
+
+  return projected.sort((a, b) => a.expected_date.localeCompare(b.expected_date));
+}
+
 /**
  * Compara dois períodos financeiros com proteção contra divisão por zero e bases inválidas.
  */

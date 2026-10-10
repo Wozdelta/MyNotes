@@ -38,6 +38,12 @@ export function generateRecurrenceDates(
   const targetDayOfMonth = recurrence.day_of_month ?? startDay;
 
   let currentDate = start;
+  if (recurrence.frequency === 'monthly' && recurrence.day_of_month !== undefined) {
+    const candidate = `${startYear}-${padZero(startMonth)}-${padZero(Math.min(targetDayOfMonth, getDaysInMonth(startYear, startMonth)))}`;
+    currentDate = candidate >= start
+      ? candidate
+      : addMonths(start, Math.max(1, recurrence.interval_step || 1), targetDayOfMonth);
+  }
   let count = 0;
 
   while (count < maxOccurrences) {
@@ -54,7 +60,7 @@ export function generateRecurrenceDates(
       currentDate = addDays(currentDate, (recurrence.interval_step || 1) * 7);
     } else if (recurrence.frequency === 'monthly') {
       // Regra obrigatória: se dia base for 31 e mês tiver 30 dias, usa 30. No próximo de 31, volta a 31.
-      currentDate = addMonths(start, count * (recurrence.interval_step || 1), targetDayOfMonth);
+      currentDate = addMonths(currentDate, recurrence.interval_step || 1, targetDayOfMonth);
     } else if (recurrence.frequency === 'yearly') {
       // Regra obrigatória para 29 de fevereiro
       currentDate = addYears(start, count * (recurrence.interval_step || 1), startDay, startMonth);

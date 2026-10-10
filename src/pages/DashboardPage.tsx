@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { formatDateBR, getDaysInMonth, padZero, todayString, WEEKDAY_SHORT_NAMES_BR } from '../utils/date';
-import { calculateTotalCurrentBalance, formatCurrency, isOverdue } from '../utils/finance';
+import { calculateTotalCurrentBalance, calculateUpcomingNonSalaryIncome, formatCurrency, isOverdue } from '../utils/finance';
 
 interface DashboardPageProps {
   onNavigateToTransactions: (filterType?: string) => void;
@@ -29,7 +29,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   onOpenTransfer,
   onOpenCalendar
 }) => {
-  const { summary, transactions, categories, accounts, transfers, periodFilter, completeTransaction } = useFinance();
+  const { summary, transactions, recurrences, categories, accounts, transfers, periodFilter, completeTransaction } = useFinance();
   const [showDetails, setShowDetails] = useState(false);
   const today = todayString();
 
@@ -55,7 +55,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   const nextPayment = pendingExpenses[0];
   const amountMissing = Math.max(0, summary.totalToPay - summary.currentBalance);
   const amountLeft = Math.max(0, summary.currentBalance - summary.totalToPay);
-  const balanceAfterMonth = summary.currentBalance + summary.totalToReceive - summary.totalToPay;
+  const upcomingIncome = useMemo(() => calculateUpcomingNonSalaryIncome(
+    transactions,
+    recurrences,
+    periodFilter.startDate,
+    periodFilter.endDate,
+    today
+  ), [transactions, recurrences, periodFilter, today]);
+  const balanceAfterMonth = summary.currentBalance + upcomingIncome - summary.totalToPay;
 
   const calendarData = useMemo(() => {
     const [year, month] = periodFilter.startDate.split('-').map(Number);
@@ -134,7 +141,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
           </div>
           <div className="dashboard-mini-stat is-income">
             <span><ArrowDownToLine size={16} /> Ainda vai cair</span>
-            <strong>+{formatCurrency(summary.totalToReceive)}</strong>
+            <strong>+{formatCurrency(upcomingIncome)}</strong>
             <small>Até o fim do período</small>
           </div>
         </div>
@@ -289,7 +296,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                 <h3>Resumo do período</h3>
                 <button onClick={() => onNavigateToTransactions('all')}>Ver extrato</button>
               </div>
-              <div className="dashboard-summary-row"><span>Entradas pendentes</span><strong>{formatCurrency(summary.totalToReceive)}</strong></div>
+              <div className="dashboard-summary-row"><span>Entradas pendentes (sem salários)</span><strong>{formatCurrency(upcomingIncome)}</strong></div>
               <div className="dashboard-summary-row"><span>Despesas pendentes</span><strong>{formatCurrency(summary.totalToPay)}</strong></div>
               <div className="dashboard-summary-row"><span>Resultado previsto</span><strong>{formatCurrency(summary.expectedResult)}</strong></div>
               <div className="dashboard-summary-row"><span>Saldo atual</span><strong>{formatCurrency(summary.currentBalance)}</strong></div>

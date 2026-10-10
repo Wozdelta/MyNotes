@@ -98,6 +98,19 @@ describe('Date & Recurrence Engine Tests', () => {
     ]);
   });
 
+  it('alinha a primeira ocorrência mensal ao dia escolhido', () => {
+    const recurrence: Recurrence = {
+      id: 'rec-15', user_id: 'u-1', account_id: 'a-1', category_id: 'c-1',
+      type: 'income', description: 'Faculdade', amount: 926.20,
+      frequency: 'monthly', interval_step: 1, start_date: '2026-10-10',
+      day_of_month: 15, is_active: true, created_at: '', updated_at: ''
+    };
+
+    expect(generateRecurrenceDates(recurrence, '2026-12-31')).toEqual([
+      '2026-10-15', '2026-11-15', '2026-12-15'
+    ]);
+  });
+
   it('não duplica ocorrências já existentes e respeita exceções de exclusão', () => {
     const rec: Recurrence = {
       id: 'rec-1',

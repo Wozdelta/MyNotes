@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { Account, Transaction, Transfer } from '../types';
+import { Account, Recurrence, Transaction, Transfer } from '../types';
 import {
   calculateAccountBalance,
   calculateActualResult,
   calculateExpectedResult,
   calculateFinancialSummary,
+  calculateUpcomingNonSalaryIncome,
   calculateTotalCurrentBalance,
   comparePeriods,
   formatCurrency,
@@ -199,6 +200,28 @@ describe('Centralized Finance Engine Tests', () => {
     expect(isOverdue(lateTx, today)).toBe(true);
     expect(isOverdue(paidTx, today)).toBe(false);
     expect(isOverdue(futureTx, today)).toBe(false);
+  });
+
+  it('projeta recorrência próxima sem duplicar ocorrência e ignora salário', () => {
+    const base: Recurrence = {
+      id: 'college', user_id: 'u-1', account_id: 'a-1', category_id: 'extra',
+      type: 'income', description: 'Faculdade', amount: 926.20,
+      frequency: 'monthly', interval_step: 1, start_date: '2026-10-10',
+      day_of_month: 15, is_active: true, created_at: '', updated_at: ''
+    };
+    const salary: Recurrence = {
+      ...base, id: 'salary', category_id: 'salary', description: 'Embraer', amount: 1157.36,
+      salary_schedule: { mode: 'business', day: 1, businessDay: 'last', advance: false, holidays: [] }
+    };
+
+    expect(calculateUpcomingNonSalaryIncome([], [base, salary], '2026-10-01', '2026-10-31', '2026-10-10')).toBe(926.20);
+
+    const generated: Transaction = {
+      id: 'tx-college', user_id: 'u-1', account_id: 'a-1', category_id: 'extra',
+      type: 'income', description: 'Faculdade', amount: 926.20, expected_date: '2026-10-15',
+      status: 'pending', recurrence_id: base.id, created_at: '', updated_at: ''
+    };
+    expect(calculateUpcomingNonSalaryIncome([generated], [base], '2026-10-01', '2026-10-31', '2026-10-10')).toBe(926.20);
   });
 
   it('calcula comparação de períodos com proteção contra divisão por zero', () => {

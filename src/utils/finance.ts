@@ -1,5 +1,6 @@
-import { Account, FinancialSummary, Transaction, Transfer } from '../types';
+import { Account, FinancialSummary, Recurrence, Transaction, Transfer } from '../types';
 import { isDateBefore, isDateBetween, todayString } from './date';
+import { generateRecurrenceDates } from './recurrenceEngine';
 
 /**
  * Converte valor numérico para centavos inteiros para evitar imprecisões de ponto flutuante.
@@ -270,6 +271,55 @@ export function calculateFinancialSummary(
     projectedBalanceAtEnd: fromCents(projectedCents),
     firstNegativeDate
   };
+}
+
+/**
+ * Calcula somente entradas que ainda podem cair no período do painel.
+ * Recorrências salariais ficam fora deste indicador e ocorrências já materializadas
+ * não são somadas duas vezes.
+ */
+export function calculateUpcomingNonSalaryIncome(
+  transactions: Transaction[],
+  recurrences: Recurrence[],
+  startDate: string,
+  endDate: string,
+  today: string = todayString()
+): number {
+  const salaryRecurrenceIds = new Set(
+    recurrences.filter(recurrence => Boolean(recurrence.salary_schedule)).map(recurrence => recurrence.id)
+  );
+  const existingOccurrenceKeys = new Set(
+    transactions
+      .filter(transaction => transaction.recurrence_id)
+      .map(transaction => `${transaction.recurrence_id}:${transaction.expected_date}`)
+  );
+
+  let cents = 0;
+  for (const transaction of transactions) {
+    const isSalary = Boolean(transaction.salary_schedule) ||
+      Boolean(transaction.recurrence_id && salaryRecurrenceIds.has(transaction.recurrence_id));
+    if (
+      transaction.type === 'income' &&
+      transaction.status === 'pending' &&
+      !isSalary &&
+      transaction.expected_date >= today &&
+      isDateBetween(transaction.expected_date, startDate, endDate)
+    ) {
+      cents += toCents(transaction.amount);
+    }
+  }
+
+  for (const recurrence of recurrences) {
+    if (!recurrence.is_active || recurrence.type !== 'income' || recurrence.salary_schedule) continue;
+    const dates = generateRecurrenceDates(recurrence, endDate);
+    for (const date of dates) {
+      if (date < today || !isDateBetween(date, startDate, endDate)) continue;
+      if (existingOccurrenceKeys.has(`${recurrence.id}:${date}`)) continue;
+      cents += toCents(recurrence.amount);
+    }
+  }
+
+  return fromCents(cents);
 }
 
 /**

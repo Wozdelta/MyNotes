@@ -74,19 +74,18 @@ export const CalendarPage: React.FC<CalendarPageProps> = ({ onOpenCreateWithDate
                 const day = i + 1;
                 const date = currentYearMonth + '-' + padZero(day);
                 const items = dailyTransactionsMap.get(date) || [];
-                const realized = transactions.filter(t => t.status === 'completed' && t.effective_date === date);
-                const net = realized.reduce((sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount), 0);
-                const tone = date < today && realized.length ? net >= 0 ? 'positive' : 'negative' : '';
+                const net = items.reduce((sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount), 0);
+                const tone = items.length > 0 ? (net >= 0 ? 'positive' : 'negative') : '';
                 return <button key={date} className={'agenda-day ' + tone + (date === selectedDate ? ' selected' : '')}
                   aria-pressed={date === selectedDate} aria-current={date === today ? 'date' : undefined}
-                  aria-label={formatDateBR(date) + ', ' + items.length + ' lançamentos' + (date < today && realized.length ? ', resultado realizado ' + formatCurrency(net) : '')}
+                  aria-label={formatDateBR(date) + ', ' + items.length + ' lançamentos' + (items.length ? ', saldo ' + formatCurrency(net) : '')}
                   onClick={() => setSelectedDate(date)}>
                   <span>{day}</span>
                   {items.length > 0 && <small>{items.length} lanç.</small>}
                 </button>;
               })}
             </div>
-            <div className="agenda-legend"><span><i className="positive" />Entradas ≥ saídas</span><span><i className="negative" />Saídas maiores</span><span>Somente dias passados e valores realizados</span></div>
+            <div className="agenda-legend"><span><i className="positive" />Mais entradas</span><span><i className="negative" />Mais despesas</span></div>
           </> : <div className="agenda-month-list">
             {dailyTransactionsMap.size === 0 && <div className="finance-empty"><CalendarIcon size={28} /><strong>Seu mês está livre</strong><p>Nenhum lançamento neste mês.</p></div>}
             {Array.from(dailyTransactionsMap.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([date, items]) =>

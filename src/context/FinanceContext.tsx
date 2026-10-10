@@ -49,6 +49,7 @@ interface FinanceContextType {
   periodFilter: PeriodFilter;
   setPeriodMode: (mode: 'current_month' | 'previous_month' | 'custom' | 'next_30' | 'next_60' | 'next_120', customStart?: string, customEnd?: string) => void;
   setDateBase: (dateBase: 'expected' | 'effective') => void;
+  setShowSalaries: (show: boolean) => void;
   summary: FinancialSummary;
 
   // Actions
@@ -112,7 +113,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     mode: 'current_month',
     startDate: getStartOfMonth(today),
     endDate: getEndOfMonth(today),
-    dateBase: 'expected'
+    dateBase: 'expected',
+    showSalaries: true
   });
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
@@ -411,6 +413,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setPeriodFilter(prev => ({ ...prev, dateBase }));
   };
 
+  const setShowSalaries = (showSalaries: boolean) => {
+    setPeriodFilter(prev => ({ ...prev, showSalaries }));
+  };
+
   // Cálculo de sumário reativo centralizado
   const summary = useMemo(() => {
     return calculateFinancialSummary(
@@ -419,7 +425,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       transfers,
       periodFilter.startDate,
       periodFilter.endDate,
-      today
+      today,
+      periodFilter.showSalaries
     );
   }, [accounts, transactions, transfers, periodFilter, today]);
 
@@ -740,6 +747,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         periodFilter,
         setPeriodMode,
         setDateBase,
+        setShowSalaries,
         summary,
         refreshData: loadUserData,
         createTransaction,

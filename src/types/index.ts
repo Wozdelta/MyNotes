@@ -158,6 +158,7 @@ export interface PeriodFilter {
   startDate: string; // YYYY-MM-DD
   endDate: string;   // YYYY-MM-DD
   dateBase: 'expected' | 'effective';
+  showSalaries: boolean;
 }
 
 export interface TransactionFilter {

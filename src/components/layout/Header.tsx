@@ -26,7 +26,8 @@ export const Header: React.FC<HeaderProps> = ({
   const {
     user,
     periodFilter,
-    setPeriodMode
+    setPeriodMode,
+    setShowSalaries
   } = useFinance();
 
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
@@ -89,6 +90,23 @@ export const Header: React.FC<HeaderProps> = ({
               <option value="next_120">Próximos 120 dias</option>
               <option value="custom">Personalizado...</option>
             </Select>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 6, borderLeft: '1px solid var(--border-color)', paddingLeft: 12 }}>
+            <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-subtle)', cursor: 'pointer' }} onClick={() => setShowSalaries(!periodFilter.showSalaries)}>Contar salário</label>
+            <button 
+              onClick={() => setShowSalaries(!periodFilter.showSalaries)}
+              aria-pressed={periodFilter.showSalaries}
+              style={{
+                width: 36, height: 20, borderRadius: 10, background: periodFilter.showSalaries ? 'var(--primary-color)' : 'var(--border-color)',
+                position: 'relative', border: 'none', cursor: 'pointer', transition: 'background 0.2s', padding: 0
+              }}
+            >
+              <div style={{
+                width: 16, height: 16, borderRadius: '50%', background: '#fff',
+                position: 'absolute', top: 2, left: periodFilter.showSalaries ? 18 : 2, transition: 'left 0.2s'
+              }} />
+            </button>
           </div>
         </div>
 

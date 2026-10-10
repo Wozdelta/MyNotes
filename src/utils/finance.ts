@@ -215,7 +215,8 @@ export function calculateFinancialSummary(
   transfers: Transfer[],
   startDate: string,
   endDate: string,
-  today: string = todayString()
+  today: string = todayString(),
+  showSalaries: boolean = true
 ): FinancialSummary {
   const currentBalance = calculateTotalCurrentBalance(accounts, transactions, transfers);
 
@@ -237,6 +238,8 @@ export function calculateFinancialSummary(
 
     // A receber e a pagar no período selecionado (apenas os ainda pendentes)
     if (t.status === 'pending' && isDateBetween(t.expected_date, startDate, endDate)) {
+      if (!showSalaries && Boolean(t.salary_schedule)) continue;
+
       const tCents = toCents(t.amount);
       if (t.type === 'income') {
         toReceiveCents += tCents;
@@ -260,6 +263,8 @@ export function calculateFinancialSummary(
     .sort((a, b) => a.expected_date.localeCompare(b.expected_date));
 
   for (const t of futurePending) {
+    if (!showSalaries && Boolean(t.salary_schedule)) continue;
+
     const tCents = toCents(t.amount);
     if (t.type === 'income') {
       projectedCents += tCents;
@@ -296,7 +301,8 @@ export function calculateUpcomingIncome(
   recurrences: Recurrence[],
   startDate: string,
   endDate: string,
-  today: string = todayString()
+  today: string = todayString(),
+  showSalaries: boolean = true
 ): number {
   const salaryRecurrenceIds = new Set(
     recurrences.filter(recurrence => Boolean(recurrence.salary_schedule)).map(recurrence => recurrence.id)
@@ -320,7 +326,9 @@ export function calculateUpcomingIncome(
       const isSalary = Boolean(transaction.salary_schedule) ||
         Boolean(transaction.recurrence_id && salaryRecurrenceIds.has(transaction.recurrence_id));
       
-      if (!isSalary || transaction.expected_date <= tomorrow) {
+      if (!isSalary) {
+        cents += toCents(transaction.amount);
+      } else if (showSalaries) {
         cents += toCents(transaction.amount);
       }
     }
@@ -334,7 +342,9 @@ export function calculateUpcomingIncome(
       if (date < today || !isDateBetween(date, startDate, endDate)) continue;
       if (existingOccurrenceKeys.has(`${recurrence.id}:${date}`)) continue;
       
-      if (!isSalary || date <= tomorrow) {
+      if (!isSalary) {
+        cents += toCents(recurrence.amount);
+      } else if (showSalaries) {
         cents += toCents(recurrence.amount);
       }
     }

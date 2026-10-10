@@ -15,6 +15,8 @@ import {
 import { useFinance } from '../context/FinanceContext';
 import { formatDateBR, getDaysInMonth, padZero, todayString, WEEKDAY_SHORT_NAMES_BR } from '../utils/date';
 import { buildUpcomingExpenseProjection, calculatePaymentCoverage, calculateTotalCurrentBalance, calculateUpcomingIncome, formatCurrency, fromCents, isOverdue, isVirtualRecurrenceTransaction, toCents } from '../utils/finance';
+import { generateRecurrenceDates } from '../utils/recurrenceEngine';
+import { Transaction } from '../types';
 
 interface DashboardPageProps {
   onNavigateToTransactions: (filterType?: string) => void;
@@ -62,7 +64,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     recurrences,
     periodFilter.startDate,
     periodFilter.endDate,
-    today
+    today,
+    periodFilter.showSalaries
   ), [transactions, recurrences, periodFilter, today]);
   const { amountMissing, amountLeft, balanceAfterPayments: balanceAfterMonth } = calculatePaymentCoverage(
     summary.currentBalance,
@@ -95,26 +98,48 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     const [year, month] = periodFilter.startDate.split('-').map(Number);
     const daysInMonth = getDaysInMonth(year, month);
     const firstWeekday = new Date(year, month - 1, 1).getDay();
-    const cells: Array<{ day: number; date: string; balance: number | null } | null> = Array(firstWeekday).fill(null);
+    const cells: Array<{ day: number; date: string; tone: string } | null> = Array(firstWeekday).fill(null);
+    const monthEnd = `${year}-${padZero(month)}-${padZero(daysInMonth)}`;
+
+    const map = new Map<string, Transaction[]>();
+    const existingOccurrenceKeys = new Set<string>();
+
+    for (const t of transactions) {
+      if (t.status === 'cancelled') continue;
+      if (!periodFilter.showSalaries && Boolean(t.salary_schedule) && t.status === 'pending') continue;
+
+      const date = periodFilter.dateBase === 'effective' && t.effective_date ? t.effective_date : t.expected_date;
+      if (t.recurrence_id) existingOccurrenceKeys.add(`${t.recurrence_id}:${date}`);
+      
+      const [y, m] = date.split('-').map(Number);
+      if (y === year && m === month) {
+        map.set(date, [...(map.get(date) || []), t]);
+      }
+    }
+
+    for (const recurrence of recurrences) {
+      if (!recurrence.is_active) continue;
+      for (const date of generateRecurrenceDates(recurrence, monthEnd)) {
+        const [y, m] = date.split('-').map(Number);
+        if (y !== year || m !== month) continue;
+        if (existingOccurrenceKeys.has(`${recurrence.id}:${date}`)) continue;
+        if (!periodFilter.showSalaries && Boolean(recurrence.salary_schedule)) continue;
+
+        const virtualTx = { type: recurrence.type, amount: recurrence.amount } as Transaction;
+        map.set(date, [...(map.get(date) || []), virtualTx]);
+      }
+    }
+
     for (let day = 1; day <= daysInMonth; day++) {
       const date = `${year}-${padZero(month)}-${padZero(day)}`;
-      const isPastOrToday = date <= today;
-      const balance = isPastOrToday
-        ? calculateTotalCurrentBalance(
-          accounts.filter(account => account.initial_balance_date <= date),
-          transactions.filter(transaction =>
-            transaction.status === 'completed' &&
-            Boolean(transaction.effective_date) &&
-            transaction.effective_date! <= date
-          ),
-          transfers.filter(transfer => transfer.transfer_date <= date)
-        )
-        : null;
+      const items = map.get(date) || [];
+      const net = items.reduce((sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount), 0);
+      const tone = items.length > 0 ? (net >= 0 ? 'positive' : 'negative') : 'neutral';
 
-      cells.push({ day, date, balance });
+      cells.push({ day, date, tone });
     }
     return cells;
-  }, [accounts, transactions, transfers, periodFilter.startDate, today]);
+  }, [transactions, recurrences, periodFilter]);
 
   const expenseByCategory = useMemo(() => {
     const totals = new Map<string, number>();
@@ -232,12 +257,12 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         <div className="dashboard-calendar-heading">
           <div>
             <span className="dashboard-calendar-eyebrow">{monthLabel}</span>
-            <h2>Calendário de saldo</h2>
-            <p>Saldo realizado nos dias passados. Hoje em azul, sem projeções.</p>
+            <h2>Agenda do mês</h2>
+            <p>Seus lançamentos diários. Hoje em azul.</p>
           </div>
           <div className="dashboard-calendar-legend">
-            <span><i className="positive" /> Positivo</span>
-            <span><i className="negative" /> Negativo</span>
+            <span><i className="positive" /> Mais entradas</span>
+            <span><i className="negative" /> Mais despesas</span>
           </div>
         </div>
 
@@ -248,11 +273,11 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
           {calendarData.map((cell, index) => cell ? (
             <button
               key={cell.date}
-              className={`dashboard-calendar-day ${cell.date === today ? 'today' : cell.balance === null ? 'future' : cell.balance < 0 ? 'negative' : cell.balance > 0 ? 'positive' : 'neutral'}`}
+              className={`dashboard-calendar-day ${cell.date === today ? 'today' : cell.tone}`}
               aria-current={cell.date === today ? 'date' : undefined}
               onClick={onOpenCalendar}
-              title={cell.balance === null ? formatDateBR(cell.date) : `${formatDateBR(cell.date)}: saldo ${formatCurrency(cell.balance)}`}
-              aria-label={cell.balance === null ? formatDateBR(cell.date) : `${formatDateBR(cell.date)}, saldo ${formatCurrency(cell.balance)}`}
+              title={formatDateBR(cell.date)}
+              aria-label={formatDateBR(cell.date)}
             >
               <span className="dashboard-calendar-number">{cell.day}</span>
             </button>

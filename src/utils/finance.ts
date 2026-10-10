@@ -21,10 +21,11 @@ export function calculatePaymentCoverage(
   upcomingIncome: number,
   totalToPay: number
 ): { amountMissing: number; amountLeft: number; balanceAfterPayments: number } {
-  const balanceAfterPaymentsCents = toCents(currentBalance) + toCents(upcomingIncome) - toCents(totalToPay);
+  const periodCoverageCents = toCents(upcomingIncome) - toCents(totalToPay);
+  const balanceAfterPaymentsCents = toCents(currentBalance) + periodCoverageCents;
   return {
-    amountMissing: fromCents(Math.max(0, -balanceAfterPaymentsCents)),
-    amountLeft: fromCents(Math.max(0, balanceAfterPaymentsCents)),
+    amountMissing: fromCents(Math.max(0, -periodCoverageCents)),
+    amountLeft: fromCents(Math.max(0, periodCoverageCents)),
     balanceAfterPayments: fromCents(balanceAfterPaymentsCents)
   };
 }

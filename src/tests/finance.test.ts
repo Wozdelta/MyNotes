@@ -18,14 +18,14 @@ import {
 } from '../utils/finance';
 
 describe('Centralized Finance Engine Tests', () => {
-  it('usa as entradas futuras para calcular se ainda falta dinheiro', () => {
+  it('usa as entradas futuras para calcular se ainda falta dinheiro (sem considerar saldo atual na falta)', () => {
     expect(calculatePaymentCoverage(422.92, 926.20, 684.15)).toEqual({
       amountMissing: 0,
-      amountLeft: 664.97,
+      amountLeft: 242.05,
       balanceAfterPayments: 664.97
     });
     expect(calculatePaymentCoverage(100, 50, 200)).toEqual({
-      amountMissing: 50,
+      amountMissing: 150,
       amountLeft: 0,
       balanceAfterPayments: -50
     });

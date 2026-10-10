@@ -229,7 +229,7 @@ describe('Centralized Finance Engine Tests', () => {
       salary_schedule: { mode: 'business', day: 1, businessDay: 'last', advance: false, holidays: [] }
     };
 
-    expect(calculateUpcomingIncome([], [base, salary], '2026-10-01', '2026-10-31', '2026-10-10')).toBe(2083.56);
+    expect(calculateUpcomingIncome([], [base, salary], '2026-10-01', '2026-10-31', '2026-10-10')).toBe(926.20);
 
     const generated: Transaction = {
       id: 'tx-college', user_id: 'u-1', account_id: 'a-1', category_id: 'extra',

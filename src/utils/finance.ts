@@ -1,5 +1,5 @@
 import { Account, FinancialSummary, Recurrence, Transaction, Transfer } from '../types';
-import { isDateBefore, isDateBetween, todayString } from './date';
+import { addDays, isDateBefore, isDateBetween, todayString } from './date';
 import { generateRecurrenceDates } from './recurrenceEngine';
 
 /**
@@ -287,8 +287,8 @@ export function calculateFinancialSummary(
 }
 
 /**
- * Calcula as entradas que ainda vão cair no período do painel,
- * incluindo salários e outras rendas, para projetar a cobertura de pagamentos.
+ * Calcula as entradas que ainda vão cair no período do painel.
+ * Salários só são contabilizados quando faltar 1 dia para a data prevista.
  */
 export function calculateUpcomingIncome(
   transactions: Transaction[],
@@ -297,11 +297,16 @@ export function calculateUpcomingIncome(
   endDate: string,
   today: string = todayString()
 ): number {
+  const salaryRecurrenceIds = new Set(
+    recurrences.filter(recurrence => Boolean(recurrence.salary_schedule)).map(recurrence => recurrence.id)
+  );
   const existingOccurrenceKeys = new Set(
     transactions
       .filter(transaction => transaction.recurrence_id)
       .map(transaction => `${transaction.recurrence_id}:${transaction.expected_date}`)
   );
+
+  const tomorrow = addDays(today, 1);
 
   let cents = 0;
   for (const transaction of transactions) {
@@ -311,17 +316,26 @@ export function calculateUpcomingIncome(
       transaction.expected_date >= today &&
       isDateBetween(transaction.expected_date, startDate, endDate)
     ) {
-      cents += toCents(transaction.amount);
+      const isSalary = Boolean(transaction.salary_schedule) ||
+        Boolean(transaction.recurrence_id && salaryRecurrenceIds.has(transaction.recurrence_id));
+      
+      if (!isSalary || transaction.expected_date <= tomorrow) {
+        cents += toCents(transaction.amount);
+      }
     }
   }
 
   for (const recurrence of recurrences) {
     if (!recurrence.is_active || recurrence.type !== 'income') continue;
+    const isSalary = Boolean(recurrence.salary_schedule);
     const dates = generateRecurrenceDates(recurrence, endDate);
     for (const date of dates) {
       if (date < today || !isDateBetween(date, startDate, endDate)) continue;
       if (existingOccurrenceKeys.has(`${recurrence.id}:${date}`)) continue;
-      cents += toCents(recurrence.amount);
+      
+      if (!isSalary || date <= tomorrow) {
+        cents += toCents(recurrence.amount);
+      }
     }
   }
 

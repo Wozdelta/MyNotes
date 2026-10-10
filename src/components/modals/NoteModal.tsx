@@ -4,6 +4,10 @@ import { FinancialNote, NoteType } from '../../types';
 import { todayString } from '../../utils/date';
 import { CurrencyInput } from '../common/CurrencyInput';
 import { Modal } from '../common/Modal';
+import { Select } from '../common/Select';
+import { DateInput } from '../common/DateInput';
+import { TrendingUp, TrendingDown, FileText } from 'lucide-react';
+import '../../styles/notes.css';
 
 interface NoteModalProps {
   isOpen: boolean;
@@ -150,13 +154,15 @@ export const NoteModal: React.FC<NoteModalProps> = ({
       onClose={onClose}
       title={
         convertingNote
-          ? 'Transformar Anotação em Lançamento Real'
+          ? 'Criar lançamento'
           : editingNote
           ? 'Editar Anotação'
-          : 'Nova Anotação ou Possibilidade'
+          : 'Uma nova ideia'
       }
+      variant="action-sheet"
     >
-      <form onSubmit={handleSubmit}>
+      <form className="note-form" onSubmit={handleSubmit}>
+        {!convertingNote && <p className="note-form-intro">Anote agora, decida depois. Seu saldo não muda.</p>}
         {errorMsg && (
           <div
             style={{
@@ -204,10 +210,10 @@ export const NoteModal: React.FC<NoteModalProps> = ({
               <CurrencyInput value={convertAmount} onChange={setConvertAmount} required />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="note-form-columns">
               <div className="form-group">
                 <label className="form-label">Conta *</label>
-                <select
+                <Select
                   className="form-select"
                   value={convertAccountId}
                   onChange={e => setConvertAccountId(e.target.value)}
@@ -219,12 +225,12 @@ export const NoteModal: React.FC<NoteModalProps> = ({
                       {acc.name}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
 
               <div className="form-group">
                 <label className="form-label">Categoria *</label>
-                <select
+                <Select
                   className="form-select"
                   value={convertCategoryId}
                   onChange={e => setConvertCategoryId(e.target.value)}
@@ -238,14 +244,13 @@ export const NoteModal: React.FC<NoteModalProps> = ({
                         {cat.name} ({cat.type === 'income' ? 'Entrada' : 'Despesa'})
                       </option>
                     ))}
-                </select>
+                </Select>
               </div>
             </div>
 
             <div className="form-group">
               <label className="form-label">Data Prevista *</label>
-              <input
-                type="date"
+              <DateInput
                 className="form-input"
                 value={convertExpectedDate}
                 onChange={e => setConvertExpectedDate(e.target.value)}
@@ -257,10 +262,11 @@ export const NoteModal: React.FC<NoteModalProps> = ({
           /* MODO CADASTRO / EDIÇÃO DE ANOTAÇÃO */
           <>
             <div className="form-group">
-              <label className="form-label">Tipo de Registro *</label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+              <label className="form-label">O que você quer anotar?</label>
+              <div className="note-type-options">
                 <button
                   type="button"
+                  aria-pressed={type === 'possible_income'}
                   className="btn btn-sm"
                   style={{
                     background: type === 'possible_income' ? 'var(--income-color)' : 'var(--bg-card-hover)',
@@ -268,10 +274,11 @@ export const NoteModal: React.FC<NoteModalProps> = ({
                   }}
                   onClick={() => setType('possible_income')}
                 >
-                  Possível Entrada
+                  <TrendingUp size={20} />Entrada
                 </button>
                 <button
                   type="button"
+                  aria-pressed={type === 'possible_expense'}
                   className="btn btn-sm"
                   style={{
                     background: type === 'possible_expense' ? 'var(--expense-color)' : 'var(--bg-card-hover)',
@@ -279,10 +286,11 @@ export const NoteModal: React.FC<NoteModalProps> = ({
                   }}
                   onClick={() => setType('possible_expense')}
                 >
-                  Possível Gasto
+                  <TrendingDown size={20} />Gasto
                 </button>
                 <button
                   type="button"
+                  aria-pressed={type === 'note'}
                   className="btn btn-sm"
                   style={{
                     background: type === 'note' ? 'var(--primary-color)' : 'var(--bg-card-hover)',
@@ -290,25 +298,25 @@ export const NoteModal: React.FC<NoteModalProps> = ({
                   }}
                   onClick={() => setType('note')}
                 >
-                  Lembrete
+                  <FileText size={20} />Lembrete
                 </button>
               </div>
             </div>
 
             <div className="form-group">
-              <label className="form-label">Título da Ideia ou Possibilidade *</label>
+              <label className="form-label" htmlFor="note-title">Dê um título à sua ideia *</label>
               <input
                 type="text"
+                id="note-title"
                 className="form-input"
-                placeholder="Ex: Talvez precise trocar os pneus, Proposta freelance..."
+                placeholder="Ex.: Trocar os pneus"
                 value={title}
                 onChange={e => setTitle(e.target.value)}
                 required
-                autoFocus
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="note-form-columns">
               <div className="form-group">
                 <label className="form-label">Valor Estimado (opcional)</label>
                 <CurrencyInput value={estimatedAmount} onChange={setEstimatedAmount} />
@@ -316,7 +324,7 @@ export const NoteModal: React.FC<NoteModalProps> = ({
 
               <div className="form-group">
                 <label className="form-label">Categoria (opcional)</label>
-                <select
+                <Select
                   className="form-select"
                   value={categoryId}
                   onChange={e => setCategoryId(e.target.value)}
@@ -327,16 +335,17 @@ export const NoteModal: React.FC<NoteModalProps> = ({
                       {cat.name}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
             </div>
 
             <div className="form-group">
-              <label className="form-label">Observações e Detalhes</label>
+              <label className="form-label" htmlFor="note-details">Mais detalhes <span className="note-optional">opcional</span></label>
               <textarea
                 className="form-textarea"
+                id="note-details"
                 rows={3}
-                placeholder="Ex: Aguardando orçamento da oficina, cliente deve responder dia 15..."
+                placeholder="O que você precisa lembrar?"
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
               />

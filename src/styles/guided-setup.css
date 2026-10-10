@@ -1,0 +1,28 @@
+.guided-setup { position: fixed; z-index: 190; padding: 16px 18px; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--primary-color); border-radius: 20px; box-shadow: 0 16px 48px rgb(0 0 0 / 30%); max-height: calc(100dvh - 20px); overflow-y: auto; animation: guide-reveal .25s ease-out; }
+.guided-setup-heading, .guided-setup-heading > span, .guided-setup-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.guided-setup-heading { color: var(--primary-color); font-size: .6rem; font-weight: 800; letter-spacing: .04em; }
+.guided-setup-heading button { color: var(--text-muted); padding: 5px; }
+.guided-setup-progress { height: 3px; border-radius: 4px; background: var(--border-color); margin: 6px 0 10px; overflow: hidden; }
+.guided-setup-progress span { display: block; height: 100%; background: var(--primary-color); }
+.guided-setup h2 { font-size: .95rem; margin-bottom: 5px; }
+.guided-setup p { font-size: .75rem; line-height: 1.5; color: var(--text-muted); max-height: 90px; overflow-y: auto; }
+.guided-setup-actions { margin-top: 10px; font-size: .7rem; }
+.guided-setup-actions > button:first-child { color: var(--text-muted); padding: 8px 0; }
+.guide-highlight { outline: 2px solid var(--primary-color); outline-offset: 3px; animation: guide-target-pulse 1.8s ease-in-out infinite; }
+.guide-spotlight { position: fixed; inset: 0; z-index: 175; pointer-events: none; }
+.guide-spotlight-ring { filter: drop-shadow(0 0 6px rgb(2 132 199 / 50%)); }
+.guide-touch { position: fixed; pointer-events: none; z-index: 185; color: #fff; filter: drop-shadow(0 2px 4px rgb(0 0 0 / 60%)); animation: guide-hand 1.4s ease-in-out infinite; }
+.guide-arrow { position: absolute; width: 12px; height: 12px; background: var(--bg-card); border: 1px solid var(--primary-color); transform: rotate(45deg); pointer-events: none; }
+.guide-arrow.points-up { top: -7px; border-right: 0; border-bottom: 0; }
+.guide-arrow.points-down { bottom: -7px; border-left: 0; border-top: 0; }
+.guided-setup:has(.guide-arrow) { overflow: visible; }
+.guide-expand { display: flex; gap: 5px; align-items: center; color: var(--primary-color); font-size: .7rem; margin-top: 6px; }
+.guided-setup.is-compact { padding: 10px 14px; }
+.guided-setup.is-compact .guided-setup-progress { margin: 4px 0 6px; }
+.guided-setup.is-compact .guided-setup-actions { margin-top: 4px; }
+@keyframes guide-target-pulse { 0%, 100% { scale: 1; } 50% { scale: 1.045; } }
+@keyframes guide-hand { 0%, 100% { transform: translate(3px, 5px) rotate(-15deg); } 50% { transform: translate(-2px, -3px) rotate(-15deg); } }
+@keyframes guide-reveal { from { opacity: 0; translate: 0 8px; } to { opacity: 1; translate: 0 0; } }
+@media (prefers-reduced-motion: reduce) { .guide-highlight, .guide-touch, .guided-setup { animation: none; } }
+.guided-setup button:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+@media (max-height: 550px) { .guided-setup, .guided-setup:has(.guide-arrow) { max-height: 160px; overflow-y: auto; } }

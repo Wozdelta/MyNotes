@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import '../styles/recurrences.css';
 import {
   Calendar,
   CheckCircle2,
@@ -14,6 +15,7 @@ import { useFinance } from '../context/FinanceContext';
 import { Recurrence } from '../types';
 import { formatDateBR } from '../utils/date';
 import { formatCurrency } from '../utils/finance';
+import { salaryScheduleLabel } from '../utils/salarySchedule';
 
 interface RecurrencesPageProps {
   onOpenCreate: () => void;
@@ -30,6 +32,7 @@ export const RecurrencesPage: React.FC<RecurrencesPageProps> = ({
   const accountMap = new Map(accounts.map(a => [a.id, a.name]));
 
   const getFrequencyLabel = (rec: Recurrence) => {
+    if (rec.salary_schedule) return `${salaryScheduleLabel(rec.salary_schedule)}${rec.interval_step > 1 ? ` · A cada ${rec.interval_step} meses` : ''}`;
     switch (rec.frequency) {
       case 'daily':
         return rec.interval_step > 1 ? `A cada ${rec.interval_step} dias` : 'Diária';
@@ -49,7 +52,7 @@ export const RecurrencesPage: React.FC<RecurrencesPageProps> = ({
   };
 
   return (
-    <div className="page-wrapper">
+    <div className="page-wrapper recurrences-page">
       <div
         style={{
           display: 'flex',
@@ -61,11 +64,12 @@ export const RecurrencesPage: React.FC<RecurrencesPageProps> = ({
         }}
       >
         <div>
+          <span className="recurrence-eyebrow">SUA ROTINA FINANCEIRA</span>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
             Recorrências
           </h1>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: 2 }}>
-            Gerencie suas receitas e despesas automáticas (salários, aluguéis, assinaturas e parcelas).
+            Salário, aluguel e assinaturas. Tudo no seu ritmo.
           </p>
         </div>
 
@@ -76,25 +80,10 @@ export const RecurrencesPage: React.FC<RecurrencesPageProps> = ({
       </div>
 
       {/* Caixa Explicativa das Regras de Recorrência */}
-      <div
-        style={{
-          background: 'var(--primary-light)',
-          border: '1px solid rgba(2, 132, 199, 0.25)',
-          borderRadius: 'var(--radius-md)',
-          padding: '14px 18px',
-          marginBottom: 20,
-          fontSize: '0.875rem',
-          color: 'var(--text-main)',
-          lineHeight: 1.6
-        }}
-      >
-        <strong>Como funcionam as ocorrências:</strong> Cada repetição gera um lançamento individual que nasce como
-        previsto ou pendente. Ocorrências já pagas ou recebidas nunca são sobrescritas. Se você excluir uma ocorrência
-        específica, o sistema registra uma proteção para que ela não reapareça ao recarregar a página.
-      </div>
+      <details className="recurrence-explainer"><summary><Repeat size={18} />Como funciona?</summary><p>Cada repetição vira um lançamento pendente para você acompanhar. Valores já pagos ou recebidos são preservados. Uma ocorrência excluída não deve reaparecer.</p></details>
 
       {recurrences.length === 0 ? (
-        <div className="card" style={{ textAlign: 'center', padding: '48px 20px' }}>
+        <div className="card recurrence-empty">
           <div
             style={{
               width: 56,
@@ -111,17 +100,17 @@ export const RecurrencesPage: React.FC<RecurrencesPageProps> = ({
             <Repeat size={26} />
           </div>
           <h3 style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: 6 }}>
-            Nenhuma recorrência cadastrada
+            Menos repetição. Mais organização.
           </h3>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', maxWidth: 420, margin: '0 auto 20px auto' }}>
-            Cadastre pagamentos ou recebimentos que acontecem periodicamente para prever seu saldo futuro com exatidão.
+            Comece com uma conta fixa ou um recebimento que se repete. Você pode pausar quando precisar.
           </p>
           <button className="btn btn-primary" onClick={onOpenCreate}>
-            Cadastrar Primeira Recorrência
+            Criar minha primeira recorrência
           </button>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
+        <div className="recurrence-grid">
           {recurrences.map(rec => {
             const isIncome = rec.type === 'income';
             const catName = categoryMap.get(rec.category_id) || 'Sem Categoria';

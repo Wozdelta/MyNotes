@@ -1,0 +1,33 @@
+.recurrence-eyebrow { color: var(--primary-color); font-weight: 800; letter-spacing: .1em; font-size: .625rem; }
+.recurrences-page h1 { margin: 5px 0; }
+.recurrences-page .card { border-radius: 18px; min-width: 0; overflow-wrap: anywhere; }
+.recurrence-explainer { padding: 15px; border: 1px solid var(--border-color); border-radius: 14px; background: var(--primary-light); margin-bottom: 18px; }
+.recurrence-explainer summary { display: flex; align-items: center; gap: 9px; font-size: .8125rem; font-weight: 700; cursor: pointer; }
+.recurrence-explainer summary::after { content: '+'; margin-left: auto; color: var(--primary-color); }
+.recurrence-explainer[open] summary::after { content: '−'; }
+.recurrence-explainer p { color: var(--text-muted); font-size: .8rem; line-height: 1.7; margin-top: 12px; }
+.recurrence-empty { text-align: center; padding: 30px 20px; background: linear-gradient(150deg, var(--bg-card), var(--primary-light)); }
+.recurrence-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 14px; }
+.recurrence-grid .card > div:first-child { flex-wrap: wrap; gap: 10px; }
+.recurrence-grid .card > div:first-child > div:first-child > div { flex-wrap: wrap; }
+.recurrence-intro { color: var(--text-muted); font-size: .8rem; line-height: 1.6; margin: 4px 0 20px; }
+.recurrence-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.recurrence-type { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; margin-bottom: 20px; }
+.recurrence-type .btn { padding: 15px 10px; border-radius: 14px; gap: 9px; }
+.recurrence-form .form-label { font-size: .8125rem; }
+.recurrence-form .form-input, .recurrence-form .custom-select-trigger { border-radius: 12px; min-height: 46px; }
+.recurrence-toggle { display: flex; align-items: center; gap: 12px; padding: 14px; margin-bottom: 10px; border: 1px solid var(--border-color); border-radius: 13px; }
+.recurrence-toggle .toggle-switch { flex-shrink: 0; margin: 0; }
+.recurrence-form .modal-footer { flex-wrap: wrap; }
+.recurrence-form .modal-footer .btn { flex: 1 1 120px; min-height: 46px; }
+.salary-settings { border-radius: 16px; padding: 16px; }
+.salary-help { line-height: 1.65; }
+.salary-preview > div { padding: 10px; margin-top: 6px; background: var(--bg-card); border-radius: 9px; }
+.salary-holidays summary { padding: 9px 0; line-height: 1.5; }
+.salary-location { padding: 13px; margin: 0 0 16px; border-radius: 12px; background: var(--bg-card); border: 1px solid var(--border-color); }
+.salary-location > strong { display: flex; gap: 6px; align-items: center; font-size: .8125rem; }
+.salary-location p { font-size: .7rem; color: var(--text-muted); line-height: 1.65; margin: 8px 0; }
+.salary-cep-row { display: flex; gap: 8px; margin-top: 6px; }
+.salary-cep-row input { min-width: 0; flex: 1; }
+.salary-location-found { padding-top: 12px; }
+@media (max-width:600px) { .recurrence-fields { grid-template-columns: minmax(0,1fr); gap: 0; } .recurrence-form .form-input { font-size: 16px; } .recurrences-page > div:first-child > .btn { width: 100%; min-height: 44px; border-radius: 12px; } .salary-settings { padding: 13px; } }

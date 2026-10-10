@@ -1,0 +1,22 @@
+.accounts-page .card { border-radius: 20px; min-width: 0; }
+.accounts-header-actions { display: flex; gap: 9px; }
+.accounts-header-actions .btn { border-radius: 12px; min-height: 44px; }
+.accounts-empty { text-align: center; padding: 32px 22px; margin-bottom: 20px; background: linear-gradient(140deg, var(--bg-card), var(--primary-light)); }
+.accounts-empty > svg { color: var(--primary-color); margin-bottom: 18px; }
+.accounts-empty h2 { font-size: 1.1rem; letter-spacing: -.03em; }
+.accounts-empty p { max-width: 350px; margin: 10px auto 20px; color: var(--text-muted); font-size: .8125rem; line-height: 1.7; }
+.accounts-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,300px),1fr)); gap: 14px; margin-bottom: 24px; }
+.account-card { overflow-wrap: anywhere; background: linear-gradient(155deg, var(--bg-card) 60%, var(--primary-light)); }
+.account-card > div:first-child > div, .account-card > div:first-child > div > div { min-width: 0; }
+.bank-logo { flex-shrink: 0; display: block; object-fit: contain; border-radius: 13px; }
+.account-archived-name { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.account-brand-preview { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--border-color); border-radius: 14px; margin: -4px 0 18px; background: var(--bg-card-hover); }
+.account-brand-preview strong { font-size: .875rem; }
+.account-brand-preview small { display: block; color: var(--text-muted); font-size: .65rem; line-height: 1.5; margin-top: 3px; }
+.account-form-intro { color: var(--text-muted); font-size: .8125rem; line-height: 1.6; margin: 5px 0 20px; }
+.account-form .form-input { border-radius: 12px; min-height: 46px; }
+.account-form .form-label { font-size: .8125rem; }
+.account-form .form-group > span { display: block; line-height: 1.6; }
+.account-form .modal-footer { flex-wrap: wrap; }
+.account-form .modal-footer .btn { min-height: 46px; flex: 1 1 120px; border-radius: 12px; }
+@media(max-width:600px) { .accounts-header-actions { width: 100%; } .accounts-header-actions .btn { flex: 1; } .account-form .form-input { font-size: 16px; } .account-card { padding: 18px; } }

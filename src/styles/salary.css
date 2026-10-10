@@ -1,0 +1,18 @@
+.salary-settings { margin: 4px 0 20px; padding: 16px; background: var(--primary-light); border: 1px solid var(--border-color); border-radius: var(--radius-md); }
+.salary-settings h3 { font-size: .95rem; margin-bottom: 16px; }
+.salary-settings label { font-size: .8rem; }
+.salary-check { display: flex; gap: 9px; align-items: flex-start; margin: 12px 0; }
+.salary-check input { margin-top: 4px; flex-shrink: 0; }
+.salary-help { font-size: .72rem; color: var(--text-muted); margin: 10px 0 16px; }
+.salary-holidays { padding: 12px 0; border-top: 1px solid var(--border-color); }
+.salary-holidays summary { cursor: pointer; font-size: .8rem; min-height: 30px; }
+.salary-field-row { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.salary-field-row > * { min-width: 0; }
+.salary-holidays ul { list-style: none; }
+.salary-holidays li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 12px; font-size: .75rem; overflow-wrap: anywhere; }
+.salary-holidays small { display: block; color: var(--text-muted); }
+.salary-preview { border-top: 1px solid var(--border-color); padding-top: 12px; font-size: .78rem; }
+.salary-preview > div { display: flex; justify-content: space-between; padding: 7px 0; }
+.salary-error { color: var(--expense-dark); font-size: .8rem; margin-top: 8px; }
+.salary-settings input, .salary-settings select { max-width: 100%; min-width: 0; }
+@media(max-width:420px) { .salary-field-row { grid-template-columns: 1fr; gap: 0; } }

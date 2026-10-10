@@ -7,6 +7,7 @@ interface ModalProps {
   title: string;
   children: React.ReactNode;
   maxWidth?: string;
+  variant?: 'default' | 'action-sheet';
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -14,7 +15,8 @@ export const Modal: React.FC<ModalProps> = ({
   onClose,
   title,
   children,
-  maxWidth = '540px'
+  maxWidth = '540px',
+  variant = 'default'
 }) => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -35,9 +37,9 @@ export const Modal: React.FC<ModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div className={`modal-overlay ${variant === 'action-sheet' ? 'action-sheet-overlay' : ''}`} onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="modal-title">
       <div
-        className="modal-content"
+        className={`modal-content ${variant === 'action-sheet' ? 'action-sheet' : ''}`}
         style={{ maxWidth }}
         onClick={e => e.stopPropagation()}
       >

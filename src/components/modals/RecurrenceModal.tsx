@@ -1,9 +1,16 @@
 import React, { useEffect, useState } from 'react';
+import { TrendingUp, TrendingDown } from 'lucide-react';
+import '../../styles/recurrences.css';
 import { useFinance } from '../../context/FinanceContext';
-import { Recurrence, RecurrenceFrequency, TransactionType } from '../../types';
+import { Recurrence, RecurrenceFrequency, SalarySchedule, TransactionType } from '../../types';
+import { SalaryScheduleFields } from '../common/SalaryScheduleFields';
+import { defaultSalarySchedule, isSalaryCategory, salaryDate } from '../../utils/salarySchedule';
+import '../../styles/salary.css';
 import { todayString } from '../../utils/date';
 import { CurrencyInput } from '../common/CurrencyInput';
 import { Modal } from '../common/Modal';
+import { Select } from '../common/Select';
+import { DateInput } from '../common/DateInput';
 
 interface RecurrenceModalProps {
   isOpen: boolean;
@@ -38,11 +45,14 @@ export const RecurrenceModal: React.FC<RecurrenceModalProps> = ({
   const [isActive, setIsActive] = useState(true);
   const [isAlways, setIsAlways] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [salarySchedule, setSalarySchedule] = useState<SalarySchedule>(defaultSalarySchedule());
+  const salarySelected = type === 'income' && isSalaryCategory(categories.find(c => c.id === categoryId)?.name);
 
   const activeAccounts = accounts.filter(a => !a.is_archived);
   const filteredCategories = categories.filter(c => c.type === type && !c.is_archived);
 
   useEffect(() => {
+    setSalarySchedule(editingRecurrence?.salary_schedule || defaultSalarySchedule(editingRecurrence?.day_of_month || 5));
     if (editingRecurrence) {
       setType(editingRecurrence.type);
       setDescription(editingRecurrence.description);
@@ -79,6 +89,7 @@ export const RecurrenceModal: React.FC<RecurrenceModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     setErrorMsg('');
 
     if (!description.trim()) {
@@ -103,6 +114,7 @@ export const RecurrenceModal: React.FC<RecurrenceModalProps> = ({
     }
 
     try {
+      if (salarySelected) salaryDate(startDate.slice(0, 7), salarySchedule);
       if (editingRecurrence) {
         await updateRecurrence(editingRecurrence.id, {
           type,
@@ -110,7 +122,8 @@ export const RecurrenceModal: React.FC<RecurrenceModalProps> = ({
           amount,
           account_id: accountId,
           category_id: categoryId,
-          frequency,
+          frequency: salarySelected ? 'monthly' : frequency,
+          salary_schedule: salarySelected ? salarySchedule : null,
           interval_step: intervalStep,
           start_date: startDate,
           end_date: endDate || undefined,
@@ -125,7 +138,8 @@ export const RecurrenceModal: React.FC<RecurrenceModalProps> = ({
           amount,
           account_id: accountId,
           category_id: categoryId,
-          frequency,
+          frequency: salarySelected ? 'monthly' : frequency,
+          salary_schedule: salarySelected ? salarySchedule : null,
           interval_step: intervalStep,
           start_date: startDate,
           end_date: endDate || undefined,
@@ -144,9 +158,11 @@ export const RecurrenceModal: React.FC<RecurrenceModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={editingRecurrence ? 'Editar Recorrência' : 'Cadastrar Recorrência'}
+      title={editingRecurrence ? 'Editar recorrência' : 'Nova recorrência'}
+      variant="action-sheet"
     >
-      <form onSubmit={handleSubmit}>
+      <form className="recurrence-form" onSubmit={handleSubmit}>
+        <p className="recurrence-intro">Organize uma vez. Acompanhe a cada período.</p>
         {errorMsg && (
           <div
             style={{
@@ -163,7 +179,7 @@ export const RecurrenceModal: React.FC<RecurrenceModalProps> = ({
         )}
 
         {/* Tipo */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <div className="recurrence-type">
           <button
             type="button"
             className="btn"
@@ -172,9 +188,10 @@ export const RecurrenceModal: React.FC<RecurrenceModalProps> = ({
               background: type === 'income' ? 'var(--income-color)' : 'var(--bg-card-hover)',
               color: type === 'income' ? '#fff' : 'var(--text-muted)'
             }}
-            onClick={() => setType('income')}
+            aria-pressed={type === 'income'}
+            onClick={() => { setType('income'); setCategoryId(categories.find(c => c.type === 'income' && !c.is_archived)?.id || ''); }}
           >
-            Receita Recorrente (+)
+            <TrendingUp size={20} />Entrada
           </button>
           <button
             type="button"
@@ -184,9 +201,10 @@ export const RecurrenceModal: React.FC<RecurrenceModalProps> = ({
               background: type === 'expense' ? 'var(--expense-color)' : 'var(--bg-card-hover)',
               color: type === 'expense' ? '#fff' : 'var(--text-muted)'
             }}
-            onClick={() => setType('expense')}
+            aria-pressed={type === 'expense'}
+            onClick={() => { setType('expense'); setCategoryId(categories.find(c => c.type === 'expense' && !c.is_archived)?.id || ''); }}
           >
-            Despesa Recorrente (-)
+            <TrendingDown size={20} />Despesa
           </button>
         </div>
 
@@ -210,10 +228,10 @@ export const RecurrenceModal: React.FC<RecurrenceModalProps> = ({
         </div>
 
         {/* Conta e Categoria */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="recurrence-fields">
           <div className="form-group">
             <label className="form-label">Conta *</label>
-            <select
+            <Select
               className="form-select"
               value={accountId}
               onChange={e => setAccountId(e.target.value)}
@@ -225,12 +243,12 @@ export const RecurrenceModal: React.FC<RecurrenceModalProps> = ({
                   {acc.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
 
           <div className="form-group">
             <label className="form-label">Categoria *</label>
-            <select
+            <Select
               className="form-select"
               value={categoryId}
               onChange={e => setCategoryId(e.target.value)}
@@ -242,17 +260,20 @@ export const RecurrenceModal: React.FC<RecurrenceModalProps> = ({
                   {cat.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
         </div>
 
+        {salarySelected && <SalaryScheduleFields value={salarySchedule} onChange={setSalarySchedule} month={startDate.slice(0, 7)} />}
+
         {/* Frequência e Dia */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="recurrence-fields">
           <div className="form-group">
             <label className="form-label">Frequência *</label>
-            <select
+            <Select
               className="form-select"
-              value={frequency}
+              value={salarySelected ? 'monthly' : frequency}
+              disabled={salarySelected}
               onChange={e => setFrequency(e.target.value as RecurrenceFrequency)}
               required
             >
@@ -260,10 +281,10 @@ export const RecurrenceModal: React.FC<RecurrenceModalProps> = ({
               <option value="weekly">Semanal</option>
               <option value="monthly">Mensal</option>
               <option value="yearly">Anual</option>
-            </select>
+            </Select>
           </div>
 
-          {frequency === 'monthly' ? (
+          {frequency === 'monthly' && !salarySelected ? (
             <div className="form-group">
               <label className="form-label">Dia do Mês (1 a 31) *</label>
               <input
@@ -293,11 +314,10 @@ export const RecurrenceModal: React.FC<RecurrenceModalProps> = ({
         </div>
 
         {/* Datas Inicial e Final */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="recurrence-fields">
           <div className="form-group">
             <label className="form-label">Data de Início *</label>
-            <input
-              type="date"
+            <DateInput
               className="form-input"
               value={startDate}
               onChange={e => setStartDate(e.target.value)}
@@ -308,8 +328,7 @@ export const RecurrenceModal: React.FC<RecurrenceModalProps> = ({
 
           <div className="form-group">
             <label className="form-label">Término (opcional)</label>
-            <input
-              type="date"
+            <DateInput
               className="form-input"
               value={endDate}
               onChange={e => setEndDate(e.target.value)}
@@ -319,7 +338,7 @@ export const RecurrenceModal: React.FC<RecurrenceModalProps> = ({
           </div>
         </div>
 
-        <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
+        <div className="recurrence-toggle">
           <label className="toggle-switch">
             <input
               type="checkbox"
@@ -336,12 +355,12 @@ export const RecurrenceModal: React.FC<RecurrenceModalProps> = ({
             <span className="toggle-slider"></span>
           </label>
           <label htmlFor="isAlwaysRec" style={{ fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
-            Sempre
+            A partir de hoje, sem término
           </label>
         </div>
 
         {/* Situação */}
-        <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
+        <div className="recurrence-toggle">
           <label className="toggle-switch">
             <input
               type="checkbox"
@@ -352,7 +371,7 @@ export const RecurrenceModal: React.FC<RecurrenceModalProps> = ({
             <span className="toggle-slider"></span>
           </label>
           <label htmlFor="isActiveRec" style={{ fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
-            Recorrência ativa (gerar lançamentos futuros)
+            Recorrência ativa
           </label>
         </div>
 

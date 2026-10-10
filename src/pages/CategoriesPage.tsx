@@ -9,6 +9,8 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { Modal } from '../components/common/Modal';
+import { Select } from '../components/common/Select';
+import { CategoryIcon, resolveCategoryIcon } from '../components/common/CategoryIcon';
 import { useFinance } from '../context/FinanceContext';
 import { Category, TransactionType } from '../types';
 
@@ -54,6 +56,7 @@ export const CategoriesPage: React.FC = () => {
     try {
       if (editingCategory) {
         await updateCategory(editingCategory.id, {
+          icon: resolveCategoryIcon(editingCategory),
           name: name.trim(),
           type,
           color
@@ -135,15 +138,7 @@ export const CategoriesPage: React.FC = () => {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div
-                style={{
-                  width: 14,
-                  height: 14,
-                  borderRadius: '50%',
-                  background: cat.color || '#3b82f6',
-                  flexShrink: 0
-                }}
-              />
+              <CategoryIcon category={cat} />
               <div>
                 <span style={{ fontWeight: 600, fontSize: '0.9375rem' }}>{cat.name}</span>
                 {cat.is_archived && (
@@ -214,14 +209,14 @@ export const CategoriesPage: React.FC = () => {
 
           <div className="form-group">
             <label className="form-label">Tipo</label>
-            <select
+            <Select
               className="form-select"
               value={type}
               onChange={e => setType(e.target.value as TransactionType)}
             >
               <option value="expense">Despesa</option>
               <option value="income">Entrada</option>
-            </select>
+            </Select>
           </div>
 
           <div className="form-group">

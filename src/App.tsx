@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { GuidedSetup } from './components/common/GuidedSetup';
 import { ToastContainer } from './components/common/ToastContainer';
 import { BottomNav } from './components/layout/BottomNav';
 import { Header } from './components/layout/Header';
@@ -21,7 +22,7 @@ import { TransactionsPage } from './pages/TransactionsPage';
 import { FinancialNote, Recurrence, Transaction, TransactionType } from './types';
 
 const MainApp: React.FC = () => {
-  const { isAuthenticated, isLoading, isSupabaseOnline } = useFinance();
+  const { user, isAuthenticated, isLoading, isSupabaseOnline, isPasswordRecovery } = useFinance();
 
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
   const [transactionFilterPreset, setTransactionFilterPreset] = useState<string | undefined>(undefined);
@@ -75,6 +76,9 @@ const MainApp: React.FC = () => {
   }
 
   // Se o usuário não estiver autenticado, exibe tela de login/cadastro
+  if (isPasswordRecovery && isAuthenticated) {
+    return <AuthPage key="password-recovery" initialMode="reset" />;
+  }
   if (!isAuthenticated) {
     return <AuthPage />;
   }
@@ -121,6 +125,7 @@ const MainApp: React.FC = () => {
               onNavigateToTransactions={handleNavigateToTransactions}
               onOpenNewTransaction={handleOpenNewTransaction}
               onOpenTransfer={() => setIsTransferModalOpen(true)}
+              onOpenCalendar={() => setCurrentTab('calendar')}
             />
           )}
 
@@ -220,6 +225,13 @@ const MainApp: React.FC = () => {
       />
 
       <ToastContainer />
+      {user && <GuidedSetup key={user.id} onNavigate={setCurrentTab} onCloseForms={() => {
+        window.dispatchEvent(new Event('mynotes:close-guide-forms'));
+        setIsTxModalOpen(false);
+        setIsRecurrenceModalOpen(false);
+        setIsNoteModalOpen(false);
+        setIsTransferModalOpen(false);
+      }} />}
     </div>
   );
 };

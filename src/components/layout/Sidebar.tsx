@@ -13,6 +13,7 @@ import {
   Wallet
 } from 'lucide-react';
 import { useFinance } from '../../context/FinanceContext';
+import brandIcon from '../../../Ícone Teal com N Branco e Detalhe Verde.png';
 
 interface SidebarProps {
   currentTab: string;
@@ -51,23 +52,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
           gap: 12
         }}
       >
-        <div
+        <img
+          src={brandIcon}
+          alt=""
+          width={44}
+          height={44}
           style={{
-            width: 38,
-            height: 38,
-            borderRadius: 'var(--radius-md)',
-            background: 'linear-gradient(135deg, #10b981 0%, #0284c7 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#fff',
-            fontWeight: 800,
-            fontSize: '1.25rem',
-            boxShadow: '0 4px 10px rgba(16, 185, 129, 0.25)'
+            display: 'block',
+            objectFit: 'contain',
+            flexShrink: 0,
+            filter: 'drop-shadow(0 3px 6px rgba(2, 132, 199, 0.18))'
           }}
-        >
-          MN
-        </div>
+        />
         <div>
           <div style={{ fontWeight: 800, fontSize: '1.0625rem', letterSpacing: '-0.02em' }}>
             MyNotes

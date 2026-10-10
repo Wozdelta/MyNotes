@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+import { BankLogo } from '../components/common/BankLogo';
+import { findBankBrand } from '../utils/bankBrand';
+import '../styles/accounts.css';
 import {
   Archive,
   ArrowLeftRight,
@@ -8,6 +11,7 @@ import {
   Wallet
 } from 'lucide-react';
 import { CurrencyInput } from '../components/common/CurrencyInput';
+import { DateInput } from '../components/common/DateInput';
 import { Modal } from '../components/common/Modal';
 import { useFinance } from '../context/FinanceContext';
 import { Account } from '../types';
@@ -91,7 +95,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ onOpenTransfer }) =>
   const archivedAccounts = accounts.filter(a => a.is_archived);
 
   return (
-    <div className="page-wrapper">
+    <div className="page-wrapper accounts-page">
       <div
         style={{
           display: 'flex',
@@ -104,48 +108,36 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ onOpenTransfer }) =>
       >
         <div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
-            Contas Financeiras
+            Minhas contas
           </h1>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: 2 }}>
             Cadastre suas contas bancárias, carteiras físicas ou reservas financeiras.
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="accounts-header-actions">
           <button className="btn btn-outline" onClick={onOpenTransfer}>
             <ArrowLeftRight size={16} />
             <span>Transferir</span>
           </button>
-          <button className="btn btn-primary" onClick={openCreateModal}>
+          <button data-guide="account-create" className="btn btn-primary" onClick={openCreateModal}>
             <Plus size={16} />
             <span>Nova Conta</span>
           </button>
         </div>
       </div>
 
+      {activeAccounts.length === 0 && <section className="card accounts-empty"><Wallet size={36} /><h2>Seu dinheiro começa por aqui</h2><p>Adicione seu banco, carteira ou reserva para acompanhar seus saldos em um só lugar.</p><button className="btn btn-primary" onClick={openCreateModal}><Plus size={18} />Criar minha primeira conta</button></section>}
       {/* Grid de Contas Ativas */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16, marginBottom: 28 }}>
+      <div className="accounts-grid">
         {activeAccounts.map(acc => {
           const currentBalance = calculateAccountBalance(acc, transactions, transfers);
 
           return (
-            <div key={acc.id} className="card">
+            <div key={acc.id} className="card account-card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 'var(--radius-md)',
-                      background: 'var(--primary-light)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'var(--primary-color)'
-                    }}
-                  >
-                    <Wallet size={20} />
-                  </div>
+                  <BankLogo name={acc.name} />
                   <div>
                     <h3 style={{ fontSize: '1.0625rem', fontWeight: 700 }}>{acc.name}</h3>
                     <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
@@ -213,7 +205,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ onOpenTransfer }) =>
                 <div key={acc.id} className="card" style={{ opacity: 0.6 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <h4 style={{ fontWeight: 700 }}>{acc.name} (Arquivada)</h4>
+                      <div className="account-archived-name"><BankLogo name={acc.name} /><h4 style={{ fontWeight: 700 }}>{acc.name} (Arquivada)</h4></div>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                         Saldo: {formatCurrency(calculateAccountBalance(acc, transactions, transfers))}
                       </span>
@@ -238,9 +230,11 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ onOpenTransfer }) =>
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingAccount ? 'Editar Conta' : 'Nova Conta'}
+        title={editingAccount ? 'Editar conta' : 'Nova conta'}
+        variant="action-sheet"
       >
-        <form onSubmit={handleSubmit}>
+        <form className="account-form" onSubmit={handleSubmit}>
+          <p className="account-form-intro">Dê um nome à conta e informe seu saldo de partida.</p>
           {errorMsg && (
             <div
               style={{
@@ -257,18 +251,20 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ onOpenTransfer }) =>
           )}
 
           <div className="form-group">
-            <label className="form-label">Nome da Conta *</label>
+            <label className="form-label" htmlFor="account-name">Nome da conta *</label>
             <input
               type="text"
               className="form-input"
-              placeholder="Ex: Nubank, Itaú, Carteira..."
+              id="account-name"
+              placeholder="Ex.: Nubank, Itaú ou Carteira"
               value={name}
               onChange={e => setName(e.target.value)}
               required
-              autoFocus
+
             />
           </div>
 
+          {findBankBrand(name) && <div className="account-brand-preview" aria-live="polite"><BankLogo name={name} /><div><strong>{findBankBrand(name)?.name}</strong><small>Identificado pelo nome · sem conexão com o banco</small></div></div>}
           <div className="form-group">
             <label className="form-label">Saldo Inicial (R$) *</label>
             <CurrencyInput value={initialBalance} onChange={setInitialBalance} required />
@@ -279,8 +275,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ onOpenTransfer }) =>
 
           <div className="form-group">
             <label className="form-label">Data de Referência do Saldo Inicial *</label>
-            <input
-              type="date"
+            <DateInput
               className="form-input"
               value={refDate}
               onChange={e => setRefDate(e.target.value)}

@@ -17,11 +17,14 @@ import {
   XCircle
 } from 'lucide-react';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
+import { Select } from '../components/common/Select';
+import { DateInput } from '../components/common/DateInput';
 import { useFinance } from '../context/FinanceContext';
 import { Transaction, TransactionType } from '../types';
 import { exportTransactionsToCSV } from '../utils/csvExport';
 import { formatDateBR, isDateBefore, todayString } from '../utils/date';
 import { formatCurrency, isOverdue } from '../utils/finance';
+import '../styles/transactions.css';
 
 interface TransactionsPageProps {
   initialFilter?: string;
@@ -198,9 +201,10 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
   };
 
   return (
-    <div className="page-wrapper">
+    <div className="page-wrapper transactions-page">
       {/* Topo: Título, Filtro de Base de Data e Botões de Ação */}
       <div
+        className="transactions-header"
         style={{
           display: 'flex',
           flexWrap: 'wrap',
@@ -212,10 +216,10 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
       >
         <div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
-            Lançamentos
+            Meu extrato
           </h1>
           <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span>Base de data do período:</span>
+            <span>Visualizando por</span>
             <button
               onClick={() => setDateBase(periodFilter.dateBase === 'expected' ? 'effective' : 'expected')}
               className="badge"
@@ -233,10 +237,11 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div className="transactions-header-actions" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button
             className="btn btn-outline btn-sm"
             onClick={handleExportCSV}
+            aria-label="Exportar extrato em CSV"
             title="Exportar registros filtrados para CSV (compatível com Excel)"
           >
             <Download size={16} />
@@ -265,6 +270,7 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
 
       {/* Barra de Totais do Conjunto Filtrado (Requisito 11) */}
       <div
+        className="transactions-summary"
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
@@ -277,19 +283,19 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
         }}
       >
         <div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>ENTRADAS FILTRADAS</div>
+          <div className="transactions-metric-label" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}><ArrowUpRight size={15} /> Entradas</div>
           <div style={{ fontSize: '1.125rem', fontWeight: 800, color: 'var(--income-color)' }}>
             +{formatCurrency(filteredSummary.incomeTotal)}
           </div>
         </div>
         <div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>DESPESAS FILTRADAS</div>
+          <div className="transactions-metric-label" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}><ArrowDownRight size={15} /> Despesas</div>
           <div style={{ fontSize: '1.125rem', fontWeight: 800, color: 'var(--expense-color)' }}>
             -{formatCurrency(filteredSummary.expenseTotal)}
           </div>
         </div>
         <div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>BALANÇO DO FILTRO</div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Saldo dos lançamentos filtrados</div>
           <div
             style={{
               fontSize: '1.125rem',
@@ -302,7 +308,7 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
           </div>
         </div>
         <div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>TOTAL DE ITENS</div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Lançamentos</div>
           <div style={{ fontSize: '1.125rem', fontWeight: 800, color: 'var(--text-main)' }}>
             {filteredSummary.count} <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-subtle)' }}>({filteredSummary.pendingCount} pendentes)</span>
           </div>
@@ -310,10 +316,10 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
       </div>
 
       {/* Caixa de Busca e Filtros Rápidos */}
-      <div className="card" style={{ padding: '16px', marginBottom: 16 }}>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div className="card transactions-filters" style={{ padding: '16px', marginBottom: 16 }}>
+        <div className="transactions-filter-grid" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
           {/* Busca por texto */}
-          <div style={{ position: 'relative', flex: '1 1 200px' }}>
+          <div className="transactions-search" style={{ position: 'relative', flex: '1 1 200px' }}>
             <Search
               size={16}
               style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-subtle)' }}
@@ -322,7 +328,8 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
               type="text"
               className="form-input"
               style={{ paddingLeft: 36, minHeight: 38 }}
-              placeholder="Buscar por descrição ou observações..."
+              placeholder="Buscar no extrato..."
+              aria-label="Buscar por descrição ou observações"
               value={searchQuery}
               onChange={e => {
                 setSearchQuery(e.target.value);
@@ -332,7 +339,7 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
           </div>
 
           {/* Tipo */}
-          <select
+          <Select
             className="form-select"
             style={{ flex: '1 1 120px', minHeight: 38 }}
             value={typeFilter}
@@ -345,10 +352,10 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
             <option value="all">Todos os tipos</option>
             <option value="income">Apenas Entradas</option>
             <option value="expense">Apenas Despesas</option>
-          </select>
+          </Select>
 
           {/* Situação */}
-          <select
+          <Select
             className="form-select"
             style={{ flex: '1 1 140px', minHeight: 38 }}
             value={statusFilter}
@@ -363,16 +370,18 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
             <option value="completed">Efetivadas (Pagas/Rec.)</option>
             <option value="overdue">Atrasadas</option>
             <option value="cancelled">Canceladas</option>
-          </select>
+          </Select>
 
           {/* Botão de Mais Filtros no Mobile */}
           <button
             className="btn btn-outline btn-sm"
             onClick={() => setShowFiltersMobile(!showFiltersMobile)}
+            aria-expanded={showFiltersMobile}
+            aria-controls="transactions-extra-filters"
             style={{ minHeight: 38 }}
           >
             <Filter size={16} />
-            <span>Filtros</span>
+            <span>{showFiltersMobile ? 'Menos filtros' : 'Mais filtros'}</span>
           </button>
 
           {(searchQuery || typeFilter !== 'all' || statusFilter !== 'all' || categoryFilter !== 'all' || accountFilter !== 'all' || recurrenceFilter !== 'all') && (
@@ -393,11 +402,12 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
             borderTop: '1px solid var(--border-color)'
           }}
           className="filters-expanded"
+          id="transactions-extra-filters"
         >
           {/* Categoria */}
           <div>
             <label className="form-label" style={{ fontSize: '0.75rem' }}>Categoria</label>
-            <select
+            <Select
               className="form-select"
               value={categoryFilter}
               onChange={e => { setCategoryFilter(e.target.value); setCurrentPage(1); }}
@@ -406,13 +416,13 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
               {categories.map(c => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
-            </select>
+            </Select>
           </div>
 
           {/* Conta */}
           <div>
             <label className="form-label" style={{ fontSize: '0.75rem' }}>Conta</label>
-            <select
+            <Select
               className="form-select"
               value={accountFilter}
               onChange={e => { setAccountFilter(e.target.value); setCurrentPage(1); }}
@@ -421,13 +431,13 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
               {accounts.map(a => (
                 <option key={a.id} value={a.id}>{a.name}</option>
               ))}
-            </select>
+            </Select>
           </div>
 
           {/* Recorrência */}
           <div>
             <label className="form-label" style={{ fontSize: '0.75rem' }}>Frequência</label>
-            <select
+            <Select
               className="form-select"
               value={recurrenceFilter}
               onChange={e => { setRecurrenceFilter(e.target.value as any); setCurrentPage(1); }}
@@ -435,13 +445,13 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
               <option value="all">Todas as origens</option>
               <option value="recurrent">Apenas Recorrentes</option>
               <option value="occasional">Apenas Eventuais</option>
-            </select>
+            </Select>
           </div>
 
           {/* Ordenação */}
           <div>
             <label className="form-label" style={{ fontSize: '0.75rem' }}>Ordenar por</label>
-            <select
+            <Select
               className="form-select"
               value={sortBy}
               onChange={e => setSortBy(e.target.value as any)}
@@ -450,7 +460,7 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
               <option value="date_asc">Data (Mais antiga)</option>
               <option value="amount_desc">Valor (Maior)</option>
               <option value="amount_asc">Valor (Menor)</option>
-            </select>
+            </Select>
           </div>
         </div>
       </div>
@@ -465,7 +475,7 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
 
       {/* Listagem de Lançamentos */}
       {filteredTransactions.length === 0 ? (
-        <div className="card" style={{ textAlign: 'center', padding: '48px 20px' }}>
+        <div className="card transactions-empty" style={{ textAlign: 'center', padding: '48px 20px' }}>
           <div
             style={{
               width: 56,
@@ -485,7 +495,7 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
             Nenhum lançamento encontrado
           </h3>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', maxWidth: 420, margin: '0 auto 20px auto' }}>
-            Não encontramos nenhum registro com os filtros aplicados neste período. Tente alterar os filtros ou cadastre um novo lançamento.
+            Nenhum registro neste período com os filtros atuais. Altere a busca ou adicione uma entrada ou despesa.
           </p>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
             <button className="btn btn-outline" onClick={resetFilters}>
@@ -678,8 +688,8 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
               }
 
               return (
-                <div key={t.id} className="card" style={{ padding: 16 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                <div key={t.id} className={`card transaction-mobile-card ${isIncome ? 'is-income' : 'is-expense'}`} style={{ padding: 16 }}>
+                  <div className="transaction-mobile-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
                         <span className={`badge ${badgeClass}`}>{badgeLabel}</span>
@@ -704,7 +714,7 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: 12 }}>
+                  <div className="transaction-mobile-meta" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: 12 }}>
                     <span>{cat?.name || 'Geral'}</span>
                     <span>{accName}</span>
                   </div>
@@ -716,7 +726,7 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
                   )}
 
                   {/* Ações Mobile */}
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, borderTop: '1px solid var(--border-color)', paddingTop: 10 }}>
+                  <div className="transaction-mobile-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, borderTop: '1px solid var(--border-color)', paddingTop: 10 }}>
                     {t.status === 'pending' && (
                       <button
                         className="btn btn-sm btn-outline"
@@ -736,14 +746,15 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
                         <span>Desfazer</span>
                       </button>
                     )}
-                    <button className="btn btn-sm btn-outline" onClick={() => onOpenEdit(t)}>
+                    <button className="btn btn-sm btn-outline" aria-label="Editar lançamento" onClick={() => onOpenEdit(t)}>
                       <Edit2 size={14} />
                     </button>
-                    <button className="btn btn-sm btn-outline" onClick={() => duplicateTransaction(t.id)}>
+                    <button className="btn btn-sm btn-outline" aria-label="Duplicar lançamento" onClick={() => duplicateTransaction(t.id)}>
                       <Copy size={14} />
                     </button>
                     <button
                       className="btn btn-sm btn-danger-outline"
+                      aria-label="Excluir lançamento"
                       onClick={() => setDeletingId(t.id)}
                     >
                       <Trash2 size={14} />
@@ -809,8 +820,7 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
               </p>
               <div className="form-group">
                 <label className="form-label">Data Efetiva *</label>
-                <input
-                  type="date"
+                <DateInput
                   className="form-input"
                   value={effectiveDateInput}
                   onChange={e => setEffectiveDateInput(e.target.value)}

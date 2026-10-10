@@ -1,9 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useFinance } from '../../context/FinanceContext';
-import { Transaction, TransactionStatus, TransactionType } from '../../types';
+import { SalarySchedule, Transaction, TransactionStatus, TransactionType } from '../../types';
+import { SalaryScheduleFields } from '../common/SalaryScheduleFields';
+import { defaultSalarySchedule, isSalaryCategory, salaryDate } from '../../utils/salarySchedule';
+import '../../styles/salary.css';
 import { todayString } from '../../utils/date';
 import { CurrencyInput } from '../common/CurrencyInput';
 import { Modal } from '../common/Modal';
+import { Select } from '../common/Select';
+import { DateInput } from '../common/DateInput';
 
 interface TransactionModalProps {
   isOpen: boolean;
@@ -38,9 +43,20 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   const [effectiveDate, setEffectiveDate] = useState('');
   const [notes, setNotes] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [salarySchedule, setSalarySchedule] = useState<SalarySchedule>(defaultSalarySchedule());
+  const [salaryMonth, setSalaryMonth] = useState((defaultDate || todayString()).slice(0, 7));
+  const salarySelected = type === 'income' && isSalaryCategory(categories.find(c => c.id === categoryId)?.name);
+  let calculatedDate = '', salaryError = '';
+  if (salarySelected) {
+    try { calculatedDate = salaryDate(salaryMonth, salarySchedule); }
+    catch (err) { salaryError = err instanceof Error ? err.message : 'Confira a regra de salário.'; }
+  }
 
   // Sincroniza estado com transação em edição ou valores padrões
   useEffect(() => {
+    const referenceDate = editingTransaction?.expected_date || defaultDate || todayString();
+    setSalarySchedule(editingTransaction?.salary_schedule || defaultSalarySchedule(Number(referenceDate.slice(8))));
+    setSalaryMonth(editingTransaction?.salary_month || referenceDate.slice(0, 7));
     if (editingTransaction) {
       setType(editingTransaction.type);
       setDescription(editingTransaction.description);
@@ -86,7 +102,9 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     setErrorMsg('');
+    if (salarySelected && salaryError) { setErrorMsg(salaryError); return; }
 
     if (!description.trim()) {
       setErrorMsg('Por favor, informe a descrição.');
@@ -121,7 +139,9 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
           amount,
           account_id: accountId,
           category_id: categoryId,
-          expected_date: expectedDate,
+          expected_date: salarySelected ? calculatedDate : expectedDate,
+          salary_schedule: salarySelected ? salarySchedule : null,
+          salary_month: salarySelected ? salaryMonth : null,
           status,
           effective_date: status === 'completed' ? effectiveDate : undefined,
           notes: notes.trim() || undefined
@@ -133,7 +153,9 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
           amount,
           account_id: accountId,
           category_id: categoryId,
-          expected_date: expectedDate,
+          expected_date: salarySelected ? calculatedDate : expectedDate,
+          salary_schedule: salarySelected ? salarySchedule : null,
+          salary_month: salarySelected ? salaryMonth : null,
           status,
           effective_date: status === 'completed' ? effectiveDate : undefined,
           notes: notes.trim() || undefined
@@ -224,7 +246,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div className="form-group">
             <label className="form-label">Conta *</label>
-            <select
+            <Select
               className="form-select"
               value={accountId}
               onChange={e => setAccountId(e.target.value)}
@@ -236,12 +258,12 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                   {acc.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
 
           <div className="form-group">
             <label className="form-label">Categoria *</label>
-            <select
+            <Select
               className="form-select"
               value={categoryId}
               onChange={e => setCategoryId(e.target.value)}
@@ -253,18 +275,20 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                   {cat.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
         </div>
+
+        {salarySelected && <SalaryScheduleFields value={salarySchedule} onChange={setSalarySchedule} month={salaryMonth} onMonthChange={setSalaryMonth} />}
 
         {/* Data Prevista e Situação */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div className="form-group">
             <label className="form-label">Data Prevista *</label>
-            <input
-              type="date"
+            <DateInput
               className="form-input"
-              value={expectedDate}
+              value={salarySelected ? calculatedDate : expectedDate}
+              readOnly={salarySelected}
               onChange={e => setExpectedDate(e.target.value)}
               required
             />
@@ -272,14 +296,14 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
 
           <div className="form-group">
             <label className="form-label">Situação *</label>
-            <select
+            <Select
               className="form-select"
               value={status}
               onChange={e => {
                 const s = e.target.value as TransactionStatus;
                 setStatus(s);
                 if (s === 'completed' && !effectiveDate) {
-                  setEffectiveDate(expectedDate || todayString());
+                  setEffectiveDate((salarySelected ? calculatedDate : expectedDate) || todayString());
                 }
               }}
               required
@@ -291,7 +315,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                 {type === 'income' ? 'Recebida' : 'Paga'}
               </option>
               <option value="cancelled">Cancelada</option>
-            </select>
+            </Select>
           </div>
         </div>
 
@@ -301,8 +325,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
             <label className="form-label">
               Data Efetiva {type === 'income' ? 'do Recebimento' : 'do Pagamento'} *
             </label>
-            <input
-              type="date"
+            <DateInput
               className="form-input"
               value={effectiveDate}
               onChange={e => setEffectiveDate(e.target.value)}

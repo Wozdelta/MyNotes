@@ -1,506 +1,302 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import {
-  AlertCircle,
-  ArrowDownRight,
-  ArrowUpRight,
-  Calendar,
-  CheckCircle,
-  Clock,
-  PieChart as PieChartIcon,
+  AlertTriangle,
+  ArrowDownToLine,
+  ArrowLeftRight,
+  CalendarDays,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  CreditCard,
+  Plus,
   TrendingDown,
-  TrendingUp,
   Wallet
 } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
-import { formatDateBR, isDateBefore, todayString } from '../utils/date';
-import { formatCurrency, isOverdue } from '../utils/finance';
+import { formatDateBR, getDaysInMonth, padZero, todayString, WEEKDAY_SHORT_NAMES_BR } from '../utils/date';
+import { calculateTotalCurrentBalance, formatCurrency, isOverdue } from '../utils/finance';
 
 interface DashboardPageProps {
   onNavigateToTransactions: (filterType?: string) => void;
   onOpenNewTransaction: (type: 'income' | 'expense') => void;
   onOpenTransfer: () => void;
+  onOpenCalendar: () => void;
 }
 
 export const DashboardPage: React.FC<DashboardPageProps> = ({
   onNavigateToTransactions,
   onOpenNewTransaction,
-  onOpenTransfer
+  onOpenTransfer,
+  onOpenCalendar
 }) => {
-  const { summary, transactions, categories, accounts, periodFilter, completeTransaction } = useFinance();
+  const { summary, transactions, categories, accounts, transfers, periodFilter, completeTransaction } = useFinance();
+  const [showDetails, setShowDetails] = useState(false);
   const today = todayString();
 
-  // Próximos vencimentos (pendentes ordenados por data prevista)
-  const upcomingTransactions = transactions
-    .filter(t => t.status === 'pending')
-    .sort((a, b) => a.expected_date.localeCompare(b.expected_date))
-    .slice(0, 6);
+  const monthLabel = useMemo(() => {
+    const [year, month] = periodFilter.startDate.split('-').map(Number);
+    const formatted = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' })
+      .format(new Date(year, month - 1, 1));
+    return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+  }, [periodFilter.startDate]);
 
-  // Mapeamentos de contas e categorias
-  const categoryMap = new Map(categories.map(c => [c.id, c]));
-  const accountMap = new Map(accounts.map(a => [a.id, a.name]));
+  const pendingExpenses = useMemo(() => transactions
+    .filter(transaction =>
+      transaction.type === 'expense' &&
+      transaction.status === 'pending' &&
+      transaction.expected_date >= periodFilter.startDate &&
+      transaction.expected_date <= periodFilter.endDate
+    )
+    .sort((a, b) => a.expected_date.localeCompare(b.expected_date)),
+  [transactions, periodFilter]);
 
-  // Agrupamento de despesas por categoria no período atual (realizadas)
-  const expenseByCategoryMap = new Map<string, { name: string; color: string; amount: number }>();
-  let totalExpenseInPeriod = 0;
+  const categoryMap = useMemo(() => new Map(categories.map(category => [category.id, category])), [categories]);
+  const accountMap = useMemo(() => new Map(accounts.map(account => [account.id, account.name])), [accounts]);
+  const nextPayment = pendingExpenses[0];
+  const amountMissing = Math.max(0, summary.totalToPay - summary.currentBalance);
+  const amountLeft = Math.max(0, summary.currentBalance - summary.totalToPay);
+  const balanceAfterMonth = summary.currentBalance + summary.totalToReceive - summary.totalToPay;
 
-  for (const t of transactions) {
-    if (t.type !== 'expense' || t.status !== 'completed' || !t.effective_date) continue;
-    if (t.effective_date < periodFilter.startDate || t.effective_date > periodFilter.endDate) continue;
+  const calendarData = useMemo(() => {
+    const [year, month] = periodFilter.startDate.split('-').map(Number);
+    const daysInMonth = getDaysInMonth(year, month);
+    const firstWeekday = new Date(year, month - 1, 1).getDay();
+    const cells: Array<{ day: number; date: string; balance: number | null } | null> = Array(firstWeekday).fill(null);
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = `${year}-${padZero(month)}-${padZero(day)}`;
+      const isPastOrToday = date <= today;
+      const balance = isPastOrToday
+        ? calculateTotalCurrentBalance(
+          accounts.filter(account => account.initial_balance_date <= date),
+          transactions.filter(transaction =>
+            transaction.status === 'completed' &&
+            Boolean(transaction.effective_date) &&
+            transaction.effective_date! <= date
+          ),
+          transfers.filter(transfer => transfer.transfer_date <= date)
+        )
+        : null;
 
-    const cat = categoryMap.get(t.category_id);
-    const catName = cat?.name || 'Sem Categoria';
-    const catColor = cat?.color || '#94a3b8';
+      cells.push({ day, date, balance });
+    }
+    return cells;
+  }, [accounts, transactions, transfers, periodFilter.startDate, today]);
 
-    const current = expenseByCategoryMap.get(t.category_id) || { name: catName, color: catColor, amount: 0 };
-    current.amount += t.amount;
-    expenseByCategoryMap.set(t.category_id, current);
-    totalExpenseInPeriod += t.amount;
-  }
-
-  const categoryExpenses = Array.from(expenseByCategoryMap.values()).sort((a, b) => b.amount - a.amount);
+  const expenseByCategory = useMemo(() => {
+    const totals = new Map<string, number>();
+    transactions.forEach(transaction => {
+      if (
+        transaction.type === 'expense' &&
+        transaction.status === 'completed' &&
+        transaction.effective_date &&
+        transaction.effective_date >= periodFilter.startDate &&
+        transaction.effective_date <= periodFilter.endDate
+      ) {
+        totals.set(transaction.category_id, (totals.get(transaction.category_id) || 0) + transaction.amount);
+      }
+    });
+    return Array.from(totals.entries())
+      .map(([id, amount]) => ({ category: categoryMap.get(id), amount }))
+      .sort((a, b) => b.amount - a.amount);
+  }, [transactions, periodFilter, categoryMap]);
 
   return (
-    <div className="page-wrapper">
-      {/* Alerta de Pendências Atrasadas, se houver */}
+    <div className="page-wrapper dashboard-home">
       {summary.overdueCount > 0 && (
-        <div
-          style={{
-            background: 'var(--warning-light)',
-            border: '1px solid var(--warning-color)',
-            borderRadius: 'var(--radius-md)',
-            padding: '12px 18px',
-            marginBottom: 20,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 12,
-            animation: 'fadeIn 0.2s'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <AlertCircle color="var(--warning-dark)" size={22} style={{ flexShrink: 0 }} />
-            <div>
-              <span style={{ fontWeight: 700, color: 'var(--warning-dark)' }}>
-                {summary.overdueCount} pendência{summary.overdueCount > 1 ? 's' : ''} em atraso:
-              </span>{' '}
-              <span style={{ color: 'var(--text-main)', fontSize: '0.9375rem' }}>
-                Total de {formatCurrency(summary.overdueAmount)} com vencimento anterior a hoje.
-              </span>
-            </div>
-          </div>
-          <button
-            className="btn btn-sm"
-            style={{
-              background: 'var(--warning-color)',
-              color: '#fff',
-              flexShrink: 0
-            }}
-            onClick={() => onNavigateToTransactions('overdue')}
-          >
-            Ver Atrasadas
-          </button>
-        </div>
+        <button className="dashboard-overdue" onClick={() => onNavigateToTransactions('overdue')}>
+          <AlertTriangle size={18} />
+          <span>
+            <strong>{summary.overdueCount} pagamento{summary.overdueCount > 1 ? 's' : ''} em atraso</strong>
+            {' · '}{formatCurrency(summary.overdueAmount)}
+          </span>
+          <span className="dashboard-overdue-link">Ver</span>
+        </button>
       )}
 
-      {/* Grid Principal de Indicadores Financeiros */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-          gap: 16,
-          marginBottom: 24
-        }}
-      >
-        {/* Card: Saldo Atual */}
-        <div
-          className="card card-interactive"
-          onClick={() => onNavigateToTransactions('all')}
-          title="Clique para ver todos os lançamentos"
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-              SALDO ATUAL TOTAL
-            </span>
-            <div
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 'var(--radius-md)',
-                background: 'var(--primary-light)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--primary-color)'
-              }}
-            >
-              <Wallet size={18} />
-            </div>
+      <section className="dashboard-situation-card">
+        <div className="dashboard-balance-heading">
+          <span><Wallet size={18} /> Saldo disponível</span>
+          <span className="dashboard-period-label">{monthLabel}</span>
+        </div>
+        <div className="dashboard-main-balance">
+          <strong>{formatCurrency(summary.currentBalance)}</strong>
+          <p>Somando suas contas ativas</p>
+        </div>
+
+        <div className="dashboard-situation-grid">
+          <div className="dashboard-mini-stat is-expense">
+            <span><CreditCard size={16} /> Preciso pagar</span>
+            <strong>{formatCurrency(summary.totalToPay)}</strong>
           </div>
-          <div
-            style={{
-              fontSize: '1.625rem',
-              fontWeight: 800,
-              color: summary.currentBalance >= 0 ? 'var(--text-main)' : 'var(--expense-color)',
-              letterSpacing: '-0.02em'
-            }}
-          >
-            {formatCurrency(summary.currentBalance)}
+          <div className={`dashboard-mini-stat ${amountMissing > 0 ? 'is-danger' : 'is-positive'}`}>
+            <span><TrendingDown size={16} /> {amountMissing > 0 ? 'Ainda preciso conseguir' : 'Sobra depois de pagar'}</span>
+            <strong>{formatCurrency(amountMissing > 0 ? amountMissing : amountLeft)}</strong>
           </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', marginTop: 4 }}>
-            Disponível somando todas as contas ativas
+          <div className="dashboard-mini-stat is-income">
+            <span><ArrowDownToLine size={16} /> Ainda vai cair</span>
+            <strong>+{formatCurrency(summary.totalToReceive)}</strong>
+            <small>Até o fim do período</small>
           </div>
         </div>
 
-        {/* Card: Recebido no Período */}
-        <div
-          className="card card-interactive"
-          onClick={() => onNavigateToTransactions('received')}
-          title="Clique para ver entradas recebidas"
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--income-dark)' }}>
-              TOTAL RECEBIDO
-            </span>
-            <div
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 'var(--radius-md)',
-                background: 'var(--income-light)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--income-color)'
-              }}
-            >
-              <ArrowDownRight size={18} />
-            </div>
-          </div>
-          <div style={{ fontSize: '1.625rem', fontWeight: 800, color: 'var(--income-color)', letterSpacing: '-0.02em' }}>
-            +{formatCurrency(summary.totalReceived)}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', marginTop: 4 }}>
-            Efetivado neste período
+        <div className={`dashboard-projection ${balanceAfterMonth < 0 ? 'is-negative' : ''}`}>
+          <span>Saldo após entradas e pagamentos</span>
+          <strong>{formatCurrency(balanceAfterMonth)}</strong>
+        </div>
+      </section>
+
+      <section className="dashboard-focus-card">
+        <div className="dashboard-focus-heading">
+          <div className="dashboard-focus-icon"><CreditCard size={20} /></div>
+          <div>
+            <h2>Pagamentos de {monthLabel}</h2>
+            <p>
+              {!nextPayment
+                ? 'Você não tem pagamentos pendentes neste período.'
+                : `${pendingExpenses.length} pagamento${pendingExpenses.length > 1 ? 's' : ''} pendente${pendingExpenses.length > 1 ? 's' : ''} neste período`}
+            </p>
           </div>
         </div>
 
-        {/* Card: Pago no Período */}
-        <div
-          className="card card-interactive"
-          onClick={() => onNavigateToTransactions('paid')}
-          title="Clique para ver despesas pagas"
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--expense-dark)' }}>
-              TOTAL PAGO
-            </span>
-            <div
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 'var(--radius-md)',
-                background: 'var(--expense-light)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--expense-color)'
-              }}
-            >
-              <ArrowUpRight size={18} />
-            </div>
-          </div>
-          <div style={{ fontSize: '1.625rem', fontWeight: 800, color: 'var(--expense-color)', letterSpacing: '-0.02em' }}>
-            -{formatCurrency(summary.totalPaid)}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', marginTop: 4 }}>
-            Efetivado neste período
-          </div>
-        </div>
-
-        {/* Card: Resultado Realizado */}
-        <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-              RESULTADO DO PERÍODO
-            </span>
-            <span
-              className={`badge ${
-                summary.actualResult > 0 ? 'badge-income' : summary.actualResult < 0 ? 'badge-expense' : 'badge-neutral'
-              }`}
-            >
-              {summary.actualResult > 0 ? 'Superávit' : summary.actualResult < 0 ? 'Déficit' : 'Neutro'}
-            </span>
-          </div>
-          <div
-            style={{
-              fontSize: '1.625rem',
-              fontWeight: 800,
-              color:
-                summary.actualResult > 0
-                  ? 'var(--income-color)'
-                  : summary.actualResult < 0
-                  ? 'var(--expense-color)'
-                  : 'var(--neutral-color)',
-              letterSpacing: '-0.02em'
-            }}
-          >
-            {summary.actualResult > 0 ? '+' : ''}
-            {formatCurrency(summary.actualResult)}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', marginTop: 4 }}>
-            Recebido ({formatCurrency(summary.totalReceived)}) - Pago ({formatCurrency(summary.totalPaid)})
-          </div>
-        </div>
-      </div>
-
-      {/* Grid Secundário: Previsões e Projeção Futura */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-          gap: 16,
-          marginBottom: 28
-        }}
-      >
-        <div
-          className="card card-interactive"
-          onClick={() => onNavigateToTransactions('to_receive')}
-          style={{ borderLeft: '4px solid var(--income-color)' }}
-        >
-          <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 600 }}>A RECEBER (PREVISTO)</div>
-          <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--income-color)', marginTop: 4 }}>
-            {formatCurrency(summary.totalToReceive)}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', marginTop: 2 }}>
-            Ainda pendentes no período
-          </div>
-        </div>
-
-        <div
-          className="card card-interactive"
-          onClick={() => onNavigateToTransactions('to_pay')}
-          style={{ borderLeft: '4px solid var(--expense-color)' }}
-        >
-          <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 600 }}>A PAGAR (PREVISTO)</div>
-          <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--expense-color)', marginTop: 4 }}>
-            {formatCurrency(summary.totalToPay)}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', marginTop: 2 }}>
-            Ainda pendentes no período
-          </div>
-        </div>
-
-        <div className="card" style={{ borderLeft: '4px solid var(--primary-color)' }}>
-          <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 600 }}>RESULTADO PREVISTO TOTAL</div>
-          <div
-            style={{
-              fontSize: '1.25rem',
-              fontWeight: 700,
-              color: summary.expectedResult >= 0 ? 'var(--income-color)' : 'var(--expense-color)',
-              marginTop: 4
-            }}
-          >
-            {summary.expectedResult > 0 ? '+' : ''}
-            {formatCurrency(summary.expectedResult)}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', marginTop: 2 }}>
-            Previsto em toda a agenda do mês
-          </div>
-        </div>
-
-        <div className="card" style={{ borderLeft: '4px solid #8b5cf6' }}>
-          <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 600 }}>SALDO PROJETADO AO FIM</div>
-          <div
-            style={{
-              fontSize: '1.25rem',
-              fontWeight: 700,
-              color: summary.projectedBalanceAtEnd >= 0 ? '#8b5cf6' : 'var(--expense-color)',
-              marginTop: 4
-            }}
-          >
-            {formatCurrency(summary.projectedBalanceAtEnd)}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', marginTop: 2 }}>
-            Saldo atual + receitas - despesas futuras
-          </div>
-        </div>
-      </div>
-
-      {/* Grid de Gráficos e Próximos Vencimentos */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24 }}>
-        {/* Gastos por Categoria (Gráfico em SVG Responsivo e Lista) */}
-        <div className="card">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <PieChartIcon size={20} color="var(--primary-color)" />
-              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Gastos por Categoria</h3>
-            </div>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)' }}>Realizados</span>
-          </div>
-
-          {categoryExpenses.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '36px 0', color: 'var(--text-muted)' }}>
-              Nenhuma despesa efetivada neste período.
-            </div>
-          ) : (
-            <div>
-              {/* Barra de Progresso Segmentada */}
-              <div
-                style={{
-                  height: 12,
-                  width: '100%',
-                  borderRadius: 'var(--radius-full)',
-                  overflow: 'hidden',
-                  display: 'flex',
-                  background: 'var(--bg-card-hover)',
-                  marginBottom: 18
-                }}
+        {nextPayment && (
+          <div className="dashboard-payment-list">
+            <div className="dashboard-next-label">Próximo pagamento</div>
+            <div className={`dashboard-payment-row ${isOverdue(nextPayment, today) ? 'is-late' : ''}`}>
+              <div className="dashboard-payment-date">
+                <CalendarDays size={16} />
+                <span>{formatDateBR(nextPayment.expected_date)}</span>
+              </div>
+              <div className="dashboard-payment-description">
+                <strong>{nextPayment.description}</strong>
+                {accountMap.get(nextPayment.account_id) && <small>{accountMap.get(nextPayment.account_id)}</small>}
+              </div>
+              <strong className="dashboard-payment-value">{formatCurrency(nextPayment.amount)}</strong>
+              <button
+                className="dashboard-payment-check"
+                onClick={() => completeTransaction(nextPayment.id, today)}
+                title="Marcar como pago"
+                aria-label={`Marcar ${nextPayment.description} como pago`}
               >
-                {categoryExpenses.map((cat, idx) => {
-                  const pct = totalExpenseInPeriod > 0 ? (cat.amount / totalExpenseInPeriod) * 100 : 0;
-                  return (
-                    <div
-                      key={idx}
-                      style={{
-                        width: `${pct}%`,
-                        background: cat.color,
-                        height: '100%'
-                      }}
-                      title={`${cat.name}: ${pct.toFixed(1)}%`}
-                    />
-                  );
-                })}
-              </div>
-
-              {/* Lista com valores e percentuais */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {categoryExpenses.slice(0, 5).map((cat, idx) => {
-                  const pct = totalExpenseInPeriod > 0 ? (cat.amount / totalExpenseInPeriod) * 100 : 0;
-                  return (
-                    <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div
-                          style={{
-                            width: 10,
-                            height: 10,
-                            borderRadius: '50%',
-                            background: cat.color,
-                            flexShrink: 0
-                          }}
-                        />
-                        <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>{cat.name}</span>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <span style={{ fontSize: '0.875rem', fontWeight: 700 }}>{formatCurrency(cat.amount)}</span>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: 6 }}>
-                          ({pct.toFixed(0)}%)
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                <CheckCircle2 size={18} />
+              </button>
             </div>
-          )}
+            {pendingExpenses.length > 1 && (
+              <button className="dashboard-more-payments" onClick={() => onNavigateToTransactions('to_pay')}>
+                Ver mais {pendingExpenses.length - 1} pagamento{pendingExpenses.length - 1 > 1 ? 's' : ''}
+              </button>
+            )}
+          </div>
+        )}
+
+        <div className="dashboard-total-line">
+          <span>Total a pagar</span>
+          <strong>{formatCurrency(summary.totalToPay)}</strong>
+        </div>
+      </section>
+
+      <section className="dashboard-balance-calendar">
+        <div className="dashboard-calendar-heading">
+          <div>
+            <span className="dashboard-calendar-eyebrow">{monthLabel}</span>
+            <h2>Calendário de saldo</h2>
+            <p>Saldo realizado nos dias passados. Hoje em azul, sem projeções.</p>
+          </div>
+          <div className="dashboard-calendar-legend">
+            <span><i className="positive" /> Positivo</span>
+            <span><i className="negative" /> Negativo</span>
+          </div>
         </div>
 
-        {/* Próximos Vencimentos */}
-        <div className="card">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Clock size={20} color="var(--primary-color)" />
-              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Próximos Vencimentos</h3>
-            </div>
+        <div className="dashboard-calendar-weekdays">
+          {WEEKDAY_SHORT_NAMES_BR.map(day => <span key={day}>{day}</span>)}
+        </div>
+        <div className="dashboard-calendar-grid">
+          {calendarData.map((cell, index) => cell ? (
             <button
-              className="btn btn-outline btn-sm"
-              onClick={() => onNavigateToTransactions('pending')}
-              style={{ fontSize: '0.75rem', padding: '4px 10px' }}
+              key={cell.date}
+              className={`dashboard-calendar-day ${cell.date === today ? 'today' : cell.balance === null ? 'future' : cell.balance < 0 ? 'negative' : cell.balance > 0 ? 'positive' : 'neutral'}`}
+              aria-current={cell.date === today ? 'date' : undefined}
+              onClick={onOpenCalendar}
+              title={cell.balance === null ? formatDateBR(cell.date) : `${formatDateBR(cell.date)}: saldo ${formatCurrency(cell.balance)}`}
+              aria-label={cell.balance === null ? formatDateBR(cell.date) : `${formatDateBR(cell.date)}, saldo ${formatCurrency(cell.balance)}`}
             >
-              Ver Todos
+              <span className="dashboard-calendar-number">{cell.day}</span>
             </button>
+          ) : <div className="dashboard-calendar-empty" key={`empty-${index}`} />)}
+        </div>
+
+        <button className="dashboard-calendar-open" onClick={onOpenCalendar}>
+          <CalendarDays size={16} /> Abrir agenda completa
+        </button>
+      </section>
+
+      <div className="dashboard-actions">
+        <button className="btn btn-primary btn-sm" onClick={() => onOpenNewTransaction('expense')}>
+          <Plus size={17} /> Novo lançamento
+        </button>
+        <button className="btn btn-outline btn-sm" onClick={onOpenTransfer}>
+          <ArrowLeftRight size={17} /> Transferir
+        </button>
+      </div>
+
+      <button
+        className="dashboard-details-toggle"
+        onClick={() => setShowDetails(value => !value)}
+        aria-expanded={showDetails}
+      >
+        <span>{showDetails ? 'Ocultar dados detalhados' : 'Mostrar dados detalhados'}</span>
+        {showDetails ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+      </button>
+
+      {showDetails && (
+        <section className="dashboard-details">
+          <div className="dashboard-detail-grid">
+            <button className="dashboard-detail-stat" onClick={() => onNavigateToTransactions('received')}>
+              <span>Total recebido</span><strong className="income">+{formatCurrency(summary.totalReceived)}</strong>
+            </button>
+            <button className="dashboard-detail-stat" onClick={() => onNavigateToTransactions('paid')}>
+              <span>Total pago</span><strong className="expense">−{formatCurrency(summary.totalPaid)}</strong>
+            </button>
+            <div className="dashboard-detail-stat">
+              <span>Resultado realizado</span><strong>{formatCurrency(summary.actualResult)}</strong>
+            </div>
+            <div className="dashboard-detail-stat">
+              <span>Projeção ao fim</span><strong>{formatCurrency(summary.projectedBalanceAtEnd)}</strong>
+            </div>
           </div>
 
-          {upcomingTransactions.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '36px 0', color: 'var(--text-muted)' }}>
-              Nenhum lançamento pendente no momento! Tudo em dia.
+          <div className="dashboard-details-columns">
+            <div className="card dashboard-detail-panel">
+              <div className="dashboard-panel-heading">
+                <h3>Gastos por categoria</h3>
+                <span>Pagos no período</span>
+              </div>
+              {expenseByCategory.length === 0 ? (
+                <p className="dashboard-empty">Nenhuma despesa paga neste período.</p>
+              ) : expenseByCategory.slice(0, 6).map(item => (
+                <div className="dashboard-category-row" key={item.category?.id || 'sem-categoria'}>
+                  <span>
+                    <i style={{ background: item.category?.color || '#94a3b8' }} />
+                    {item.category?.name || 'Sem categoria'}
+                  </span>
+                  <strong>{formatCurrency(item.amount)}</strong>
+                </div>
+              ))}
             </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {upcomingTransactions.map(t => {
-                const isLate = isOverdue(t, today);
-                const category = categoryMap.get(t.category_id);
-                const isIncome = t.type === 'income';
 
-                return (
-                  <div
-                    key={t.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '10px 12px',
-                      background: 'var(--bg-card-hover)',
-                      borderRadius: 'var(--radius-md)',
-                      gap: 12
-                    }}
-                  >
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span
-                          style={{
-                            fontWeight: 600,
-                            fontSize: '0.875rem',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis'
-                          }}
-                        >
-                          {t.description}
-                        </span>
-                        {isLate && (
-                          <span className="badge badge-warning" style={{ fontSize: '0.6875rem' }}>
-                            Atrasado
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', gap: 8, marginTop: 2 }}>
-                        <span>{formatDateBR(t.expected_date)}</span>
-                        <span>•</span>
-                        <span>{category?.name || 'Geral'}</span>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-                      <div
-                        style={{
-                          fontWeight: 700,
-                          fontSize: '0.9375rem',
-                          color: isIncome ? 'var(--income-color)' : 'var(--expense-color)'
-                        }}
-                      >
-                        {isIncome ? '+' : '-'}
-                        {formatCurrency(t.amount)}
-                      </div>
-                      <button
-                        className="btn-icon"
-                        title={isIncome ? 'Confirmar recebimento' : 'Confirmar pagamento'}
-                        style={{
-                          width: 32,
-                          height: 32,
-                          color: isIncome ? 'var(--income-color)' : 'var(--expense-color)'
-                        }}
-                        onClick={() => completeTransaction(t.id, today)}
-                      >
-                        <CheckCircle size={18} />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="card dashboard-detail-panel">
+              <div className="dashboard-panel-heading">
+                <h3>Resumo do período</h3>
+                <button onClick={() => onNavigateToTransactions('all')}>Ver extrato</button>
+              </div>
+              <div className="dashboard-summary-row"><span>Entradas pendentes</span><strong>{formatCurrency(summary.totalToReceive)}</strong></div>
+              <div className="dashboard-summary-row"><span>Despesas pendentes</span><strong>{formatCurrency(summary.totalToPay)}</strong></div>
+              <div className="dashboard-summary-row"><span>Resultado previsto</span><strong>{formatCurrency(summary.expectedResult)}</strong></div>
+              <div className="dashboard-summary-row"><span>Saldo atual</span><strong>{formatCurrency(summary.currentBalance)}</strong></div>
             </div>
-          )}
-        </div>
-      </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 };

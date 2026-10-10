@@ -1,27 +1,31 @@
 import React, { useState } from 'react';
 import {
-  Check,
-  Copy,
-  Database,
   Key,
+  Compass,
+  ChevronRight,
+  Eye,
+  EyeOff,
   LogOut,
-  Moon,
-  ShieldCheck,
-  Sun,
   User
 } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
+import '../styles/settings.css';
 
 export const SettingsPage: React.FC = () => {
-  const { user, isSupabaseOnline, logout, updatePassword, showToast } = useFinance();
+  const { user, logout, updatePassword, showToast } = useFinance();
 
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isChangingPass, setIsChangingPass] = useState(false);
-  const [copiedSql, setCopiedSql] = useState(false);
+  const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentPassword) {
+      showToast('Informe sua senha atual', 'error');
+      return;
+    }
     if (!newPassword || newPassword.length < 6) {
       showToast('A senha deve ter no mínimo 6 caracteres', 'error');
       return;
@@ -33,9 +37,11 @@ export const SettingsPage: React.FC = () => {
 
     setIsChangingPass(true);
     try {
-      await updatePassword(newPassword);
+      await updatePassword(currentPassword, newPassword);
+      setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
+      setVisiblePasswords({});
     } catch (err: any) {
       // toast já disparado
     } finally {
@@ -44,19 +50,20 @@ export const SettingsPage: React.FC = () => {
   };
 
   return (
-    <div className="page-wrapper" style={{ maxWidth: 840 }}>
+    <div className="page-wrapper settings-page" style={{ maxWidth: 840 }}>
       <div style={{ marginBottom: 24 }}>
+        <span className="settings-eyebrow">DO SEU JEITO</span>
         <h1 style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
-          Configurações & Perfil
+          Minha conta
         </h1>
         <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: 2 }}>
-          Gerencie sua conta, segurança, preferências e status de conexão.
+          Seu perfil, sua segurança e seus primeiros passos.
         </p>
       </div>
 
       {/* Card de Perfil */}
-      <div className="card" style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
+      <div className="card settings-profile">
+        <div className="settings-profile-identity">
           <div
             style={{
               width: 50,
@@ -71,96 +78,92 @@ export const SettingsPage: React.FC = () => {
           >
             <User size={26} />
           </div>
-          <div>
+          <div className="settings-profile-text">
+            <span className="settings-eyebrow">MEU PERFIL</span>
             <h2 style={{ fontSize: '1.125rem', fontWeight: 700 }}>{user?.full_name || 'Usuário'}</h2>
             <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{user?.email}</div>
           </div>
         </div>
 
-        <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 16 }}>
-          <button className="btn btn-outline btn-sm" onClick={logout} style={{ color: 'var(--expense-color)' }}>
-            <LogOut size={16} />
-            <span>Encerrar Sessão (Logout)</span>
-          </button>
-        </div>
       </div>
 
+      <button className="settings-tutorial" onClick={() => window.dispatchEvent(new Event('mynotes:start-guide'))}>
+        <span className="settings-section-icon"><Compass size={22} /></span>
+        <span><strong>Precisa de uma mão?</strong><small>Refazer tutorial guiado</small></span>
+        <ChevronRight size={19} />
+      </button>
+
       {/* Alterar Senha */}
-      <div className="card" style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-          <Key size={20} color="var(--primary-color)" />
-          <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Segurança e Nova Senha</h3>
+      <div className="card settings-security">
+        <div className="settings-section-heading">
+          <span className="settings-section-icon"><Key size={21} /></span>
+          <div><h3>Alterar senha</h3><p>Confirme sua senha atual para criar uma nova.</p></div>
         </div>
 
-        <form onSubmit={handlePasswordChange} style={{ maxWidth: 440 }}>
+        <form onSubmit={handlePasswordChange}>
           <div className="form-group">
-            <label className="form-label">Nova Senha</label>
+            <label className="form-label" htmlFor="settings-current-password">Senha atual</label>
+            <div className="settings-password-field">
             <input
-              type="password"
+              id="settings-current-password"
+              type={visiblePasswords.current ? 'text' : 'password'}
+              className="form-input"
+              placeholder="Digite sua senha atual"
+              value={currentPassword}
+              onChange={e => setCurrentPassword(e.target.value)}
+              autoComplete="current-password"
+              required
+            />
+            <button type="button" aria-label={visiblePasswords.current ? 'Ocultar senha atual' : 'Mostrar senha atual'} aria-pressed={!!visiblePasswords.current} onClick={() => setVisiblePasswords(v => ({ ...v, current: !v.current }))}>{visiblePasswords.current ? <EyeOff size={18} /> : <Eye size={18} />}</button>
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="settings-new-password">Nova senha</label>
+            <div className="settings-password-field">
+            <input
+              id="settings-new-password"
+              type={visiblePasswords.new ? 'text' : 'password'}
               className="form-input"
               placeholder="Mínimo 6 caracteres"
               value={newPassword}
               onChange={e => setNewPassword(e.target.value)}
+              autoComplete="new-password"
+              minLength={6}
               required
             />
+            <button type="button" aria-label={visiblePasswords.new ? 'Ocultar nova senha' : 'Mostrar nova senha'} aria-pressed={!!visiblePasswords.new} onClick={() => setVisiblePasswords(v => ({ ...v, new: !v.new }))}>{visiblePasswords.new ? <EyeOff size={18} /> : <Eye size={18} />}</button>
+            </div>
           </div>
 
           <div className="form-group">
-            <label className="form-label">Confirmar Nova Senha</label>
+            <label className="form-label" htmlFor="settings-confirm-password">Confirme a nova senha</label>
+            <div className="settings-password-field">
             <input
-              type="password"
+              id="settings-confirm-password"
+              type={visiblePasswords.confirm ? 'text' : 'password'}
               className="form-input"
               placeholder="Digite novamente a nova senha"
               value={confirmPassword}
               onChange={e => setConfirmPassword(e.target.value)}
+              autoComplete="new-password"
               required
             />
+            <button type="button" aria-label={visiblePasswords.confirm ? 'Ocultar confirmação da senha' : 'Mostrar confirmação da senha'} aria-pressed={!!visiblePasswords.confirm} onClick={() => setVisiblePasswords(v => ({ ...v, confirm: !v.confirm }))}>{visiblePasswords.confirm ? <EyeOff size={18} /> : <Eye size={18} />}</button>
+            </div>
           </div>
 
-          <button type="submit" className="btn btn-primary btn-sm" disabled={isChangingPass}>
+          <button type="submit" className="btn btn-primary settings-save" disabled={isChangingPass}>
+            <Key size={16} />
             {isChangingPass ? 'Atualizando...' : 'Atualizar Senha'}
           </button>
         </form>
       </div>
 
-      {/* Status da Conexão Supabase */}
-      <div className="card" style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-          <Database size={20} color="var(--primary-color)" />
-          <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Integração Supabase & Segurança</h3>
-        </div>
+      <button className="settings-signout" onClick={logout} disabled={isChangingPass}>
+        <LogOut size={18} /><span>Sair da conta</span><ChevronRight size={17} />
+      </button>
 
-        <div
-          style={{
-            padding: '14px 18px',
-            borderRadius: 'var(--radius-md)',
-            background: isSupabaseOnline ? 'var(--income-light)' : 'var(--bg-card-hover)',
-            border: `1px solid ${isSupabaseOnline ? 'rgba(16, 185, 129, 0.3)' : 'var(--border-color)'}`,
-            marginBottom: 16
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-            <ShieldCheck size={18} color={isSupabaseOnline ? 'var(--income-color)' : 'var(--text-muted)'} />
-            <span style={{ fontWeight: 700, color: isSupabaseOnline ? 'var(--income-color)' : 'var(--text-main)' }}>
-              {isSupabaseOnline ? 'Supabase Conectado Ativamente' : 'Modo de Armazenamento Local Seguro'}
-            </span>
-          </div>
-          <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-            {isSupabaseOnline
-              ? 'Seus dados estão sendo sincronizados diretamente com seu banco Supabase com proteção RLS de ponta a ponta.'
-              : 'O aplicativo está operando com persistência em armazenamento local. Para conectar com sua nuvem Supabase, basta preencher as variáveis no arquivo .env conforme o .env.example e executar o script supabase_setup.sql.'}
-          </p>
-        </div>
-
-        <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-          <strong>Regras de Segurança Aplicadas:</strong>
-          <ul style={{ paddingLeft: 20, marginTop: 6 }}>
-            <li>Chave pública ANON permitida exclusivamente para operações autenticadas do cliente.</li>
-            <li>NUNCA exponha a Service Role Key (SUPABASE_SECRET) no frontend.</li>
-            <li>RLS (Row Level Security) ativado em todas as tabelas: cada usuário acessa somente os seus próprios dados.</li>
-          </ul>
-        </div>
-      </div>
     </div>
   );
 };

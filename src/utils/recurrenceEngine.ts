@@ -1,4 +1,5 @@
 import { Recurrence, RecurrenceException, Transaction } from '../types';
+import { salaryDate } from './salarySchedule';
 import { addDays, addMonths, addYears, getDaysInMonth, isDateAfter, isDateBefore, isLeapYear, padZero } from './date';
 
 /**
@@ -10,6 +11,19 @@ export function generateRecurrenceDates(
   maxOccurrences: number = 365
 ): string[] {
   if (!recurrence.is_active) return [];
+  if (recurrence.salary_schedule && recurrence.frequency === 'monthly') {
+    const result: string[] = [];
+    let month = recurrence.start_date.slice(0, 7);
+    const finalMonth = limitDate.slice(0, 7);
+    // Include the following reference month: its payment can be advanced into the limit month.
+    const lastReference = addMonths(`${finalMonth}-01`, 1).slice(0, 7);
+    while (month <= lastReference && result.length < maxOccurrences) {
+      const date = salaryDate(month, recurrence.salary_schedule);
+      if (date >= recurrence.start_date && date <= limitDate && (!recurrence.end_date || date <= recurrence.end_date)) result.push(date);
+      month = addMonths(`${month}-01`, Math.max(1, recurrence.interval_step || 1)).slice(0, 7);
+    }
+    return result;
+  }
   const dates: string[] = [];
 
   const start = recurrence.start_date;
@@ -102,6 +116,11 @@ export function instantiateOccurrences(
       expected_date: occurrenceDate,
       status: 'pending', // Regra: Entradas nascem previstas e despesas pendentes
       notes: recurrence.notes,
+      salary_schedule: recurrence.salary_schedule || null,
+      salary_month: recurrence.salary_schedule
+        ? (salaryDate(occurrenceDate.slice(0, 7), recurrence.salary_schedule) === occurrenceDate
+          ? occurrenceDate.slice(0, 7) : addMonths(`${occurrenceDate.slice(0, 7)}-01`, 1).slice(0, 7))
+        : null,
       recurrence_id: recurrence.id,
       recurrence_index: index + 1,
       is_recurrent: true,

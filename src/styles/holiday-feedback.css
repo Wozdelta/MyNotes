@@ -1,0 +1,12 @@
+.holiday-feedback { display: flex; align-items: flex-start; gap: 9px; margin-top: 12px; padding: 12px; border: 1px solid var(--border-color); border-radius: 12px; font-size: .75rem; line-height: 1.6; overflow-wrap: anywhere; }
+.holiday-feedback > svg { flex-shrink: 0; margin-top: 2px; }
+.holiday-feedback-loading { background: var(--primary-light); color: var(--primary-color); }
+.holiday-feedback-success { background: color-mix(in srgb, var(--income-color) 9%, var(--bg-card)); color: var(--text-main); border-color: var(--income-color); }
+.holiday-feedback-success > svg { color: var(--income-color); }
+.holiday-feedback-error { background: color-mix(in srgb, var(--expense-color) 9%, var(--bg-card)); color: var(--text-main); border-color: var(--expense-color); }
+.holiday-feedback-error > svg { color: var(--expense-color); }
+.holiday-feedback-empty { background: var(--bg-card-hover); color: var(--text-muted); }
+.holiday-import-button { width: 100%; min-height: 44px; white-space: normal; margin-top: 12px; }
+.holiday-loading-icon { animation: holiday-spin 1s linear infinite; }
+@keyframes holiday-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .holiday-loading-icon { animation: none; } }

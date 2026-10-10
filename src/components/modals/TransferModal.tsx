@@ -4,6 +4,8 @@ import { useFinance } from '../../context/FinanceContext';
 import { todayString } from '../../utils/date';
 import { CurrencyInput } from '../common/CurrencyInput';
 import { Modal } from '../common/Modal';
+import { Select } from '../common/Select';
+import { DateInput } from '../common/DateInput';
 
 interface TransferModalProps {
   isOpen: boolean;
@@ -92,7 +94,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose })
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 8, alignItems: 'center', marginBottom: 16 }}>
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label">Origem (Sai)</label>
-            <select
+            <Select
               className="form-select"
               value={originId}
               onChange={e => setOriginId(e.target.value)}
@@ -104,7 +106,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose })
                   {acc.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
 
           <div style={{ marginTop: 22, color: 'var(--text-muted)' }}>
@@ -113,7 +115,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose })
 
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label">Destino (Entra)</label>
-            <select
+            <Select
               className="form-select"
               value={destId}
               onChange={e => setDestId(e.target.value)}
@@ -125,7 +127,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose })
                   {acc.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
         </div>
 
@@ -138,8 +140,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose })
         {/* Data */}
         <div className="form-group">
           <label className="form-label">Data da Transferência *</label>
-          <input
-            type="date"
+          <DateInput
             className="form-input"
             value={date}
             onChange={e => setDate(e.target.value)}

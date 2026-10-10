@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import {
   Calendar,
   ChevronDown,
-  Database,
   Moon,
   PlusCircle,
   Sun,
@@ -11,6 +10,8 @@ import {
   User
 } from 'lucide-react';
 import { useFinance } from '../../context/FinanceContext';
+import { Select } from '../common/Select';
+import { DateInput } from '../common/DateInput';
 import { formatMonthYearBR, todayString } from '../../utils/date';
 
 interface HeaderProps {
@@ -24,7 +25,6 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const {
     user,
-    isSupabaseOnline,
     periodFilter,
     setPeriodMode
   } = useFinance();
@@ -62,7 +62,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Seletor de Período */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <Calendar size={18} color="var(--primary-color)" />
-            <select
+            <Select
               className="form-select"
               value={periodFilter.mode}
               onChange={e => {
@@ -85,11 +85,11 @@ export const Header: React.FC<HeaderProps> = ({
               <option value="current_month">Mês Atual</option>
               <option value="previous_month">Mês Anterior</option>
               <option value="custom">Personalizado...</option>
-            </select>
+            </Select>
           </div>
         </div>
 
-        {/* Lado Direito: Ações rápidas, status Supabase, Tema, Perfil */}
+        {/* Lado Direito: Ações rápidas e Tema */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {/* Botões rápidos visíveis em telas médias e grandes */}
           <div style={{ display: 'none', gap: 8 }} className="desktop-actions tour-step-new-transaction">
@@ -97,6 +97,7 @@ export const Header: React.FC<HeaderProps> = ({
               className="btn btn-income btn-sm"
               onClick={() => onOpenNewTransaction('income')}
               title="Registrar nova entrada"
+              data-guide="income-create"
             >
               <TrendingUp size={16} />
               <span>Entrada</span>
@@ -105,6 +106,7 @@ export const Header: React.FC<HeaderProps> = ({
               className="btn btn-expense btn-sm"
               onClick={() => onOpenNewTransaction('expense')}
               title="Registrar nova despesa"
+              data-guide="expense-create"
             >
               <TrendingDown size={16} />
               <span>Despesa</span>
@@ -115,30 +117,6 @@ export const Header: React.FC<HeaderProps> = ({
             @media (min-width: 640px) {
               .desktop-actions {
                 display: flex !important;
-              }
-            }
-          `}</style>
-
-          {/* Badge de Conexão Supabase */}
-          <div
-            className={`badge ${isSupabaseOnline ? 'badge-income' : 'badge-neutral'}`}
-            title={
-              isSupabaseOnline
-                ? 'Conectado diretamente ao Supabase com RLS e Auth'
-                : 'Rodando com armazenamento local seguro (configure o .env com suas chaves do Supabase quando desejar)'
-            }
-            style={{ fontSize: '0.75rem', cursor: 'default' }}
-          >
-            <Database size={12} />
-            <span style={{ display: 'none' }} className="db-label">
-              {isSupabaseOnline ? 'Supabase' : 'Modo Local'}
-            </span>
-          </div>
-
-          <style>{`
-            @media (min-width: 768px) {
-              .db-label {
-                display: inline !important;
               }
             }
           `}</style>
@@ -177,8 +155,7 @@ export const Header: React.FC<HeaderProps> = ({
               <div className="modal-body">
                 <div className="form-group">
                   <label className="form-label">Data Inicial</label>
-                  <input
-                    type="date"
+                  <DateInput
                     className="form-input"
                     value={customStart}
                     onChange={e => setCustomStart(e.target.value)}
@@ -187,8 +164,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
                 <div className="form-group">
                   <label className="form-label">Data Final</label>
-                  <input
-                    type="date"
+                  <DateInput
                     className="form-input"
                     value={customEnd}
                     onChange={e => setCustomEnd(e.target.value)}

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { DataRepository } from '../services/dataRepository';
-import { isSupabaseConfigured, supabase } from '../services/supabase';
+import { hasRecoveryRedirect, isSupabaseConfigured, supabase } from '../services/supabase';
 import {
   Account,
   Category,
@@ -28,11 +28,14 @@ interface FinanceContextType {
   isSupabaseOnline: boolean;
   isLoading: boolean;
   isSubmitting: boolean;
+  isPasswordRecovery: boolean;
+  verifyRecoveryCode: (email: string, code: string) => Promise<void>;
   login: (email: string, pass: string) => Promise<void>;
   signup: (email: string, pass: string, name?: string) => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
-  updatePassword: (newPass: string) => Promise<void>;
+  updatePassword: (currentPass: string, newPass: string) => Promise<void>;
+  completePasswordReset: (newPass: string) => Promise<void>;
 
   // Data
   accounts: Account[];
@@ -92,6 +95,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(() => hasRecoveryRedirect || sessionStorage.getItem('passwordRecovery') === 'true');
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   // Dados do app
@@ -199,6 +203,14 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     // Listener de Auth do Supabase
     if (isSupabaseConfigured && supabase) {
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (_event === 'PASSWORD_RECOVERY') {
+          sessionStorage.setItem('passwordRecovery', 'true');
+          setIsPasswordRecovery(true);
+        }
+        if (_event === 'SIGNED_OUT') {
+          sessionStorage.removeItem('passwordRecovery');
+          setIsPasswordRecovery(false);
+        }
         if (session?.user) {
           setUser({
             id: session.user.id,
@@ -263,7 +275,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const { data, error } = await supabase.auth.signUp({
           email,
           password: pass,
-          options: { data: { full_name: name } }
+          options: { data: { full_name: name, onboarding_status: 'pending' } }
         });
         if (error) throw error;
         showToast('Cadastro realizado! Verifique seu e-mail caso a confirmação esteja ativada.');
@@ -273,6 +285,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           email,
           full_name: name || email.split('@')[0]
         };
+        localStorage.setItem(`mynotes_setup_${newUser.id}`, 'pending');
         setUser(newUser);
         localStorage.setItem('financas_pro_active_user', JSON.stringify(newUser));
         showToast('Conta criada com sucesso!');
@@ -295,21 +308,83 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const resetPassword = async (email: string) => {
+    if (!supabase) throw new Error('Recuperação por e-mail indisponível no modo local.');
+    setIsSubmitting(true);
+    try {
     if (isSupabaseConfigured && supabase) {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`
+        redirectTo: `${window.location.origin}/`
       });
       if (error) throw error;
     }
     showToast('Instruções para redefinição enviadas para o e-mail informado.');
+    } finally { setIsSubmitting(false); }
   };
 
-  const updatePassword = async (newPass: string) => {
-    if (isSupabaseConfigured && supabase) {
-      const { error } = await supabase.auth.updateUser({ password: newPass });
-      if (error) throw error;
+  const verifyRecoveryCode = async (email: string, code: string) => {
+    if (!supabase) throw new Error('Recuperação indisponível no modo local.');
+    if (!/^\d{6,10}$/.test(code)) throw new Error('Informe o código completo recebido por e-mail.');
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.auth.verifyOtp({ email: email.trim(), token: code, type: 'recovery' });
+      if (error) throw new Error('Código inválido ou expirado. Solicite outro código e tente novamente.');
+      sessionStorage.setItem('passwordRecovery', 'true');
+      setIsPasswordRecovery(true);
+    } finally { setIsSubmitting(false); }
+  };
+
+  const updatePassword = async (currentPass: string, newPass: string) => {
+    try {
+      if (!currentPass) {
+        throw new Error('Informe sua senha atual');
+      }
+      if (newPass === currentPass) {
+        throw new Error('A nova senha deve ser diferente da senha atual');
+      }
+
+      if (isSupabaseConfigured && supabase) {
+        const { data: { user: authUser }, error: userError } = await supabase.auth.getUser();
+        if (userError || !authUser?.email) {
+          throw new Error('Não foi possível confirmar o usuário conectado');
+        }
+
+        const { error: reauthError } = await supabase.auth.signInWithPassword({
+          email: authUser.email,
+          password: currentPass
+        });
+        if (reauthError) {
+          throw new Error('A senha atual está incorreta');
+        }
+
+        const { error: updateError } = await supabase.auth.updateUser({ password: newPass });
+        if (updateError) throw updateError;
+      }
+
+      showToast('Senha atualizada com sucesso!');
+    } catch (err: any) {
+      showToast(err.message || 'Não foi possível atualizar a senha', 'error');
+      throw err;
     }
-    showToast('Senha atualizada com sucesso!');
+  };
+
+  const completePasswordReset = async (newPass: string) => {
+    if (!supabase || !isPasswordRecovery) throw new Error('Abra o link de recuperação ou valide seu código primeiro.');
+    if (newPass.length < 6) throw new Error('Use uma senha com pelo menos 6 caracteres.');
+    setIsSubmitting(true);
+    try {
+      if (isSupabaseConfigured && supabase) {
+        const { error } = await supabase.auth.updateUser({ password: newPass });
+        if (error) throw error;
+      }
+      showToast('Senha redefinida com sucesso!');
+      sessionStorage.removeItem('passwordRecovery');
+      setIsPasswordRecovery(false);
+    } catch (err: any) {
+      showToast(err.message || 'Não foi possível redefinir a senha', 'error');
+      throw err;
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Funções de Período
@@ -431,6 +506,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       description: `${original.description} (Cópia)`,
       amount: original.amount,
       expected_date: original.expected_date,
+      salary_schedule: original.salary_schedule,
+      salary_month: original.salary_month,
       status: 'pending' as const,
       notes: original.notes
     };
@@ -653,11 +730,14 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         isSupabaseOnline: isSupabaseConfigured,
         isLoading,
         isSubmitting,
+        isPasswordRecovery,
+        verifyRecoveryCode,
         login,
         signup,
         logout,
         resetPassword,
         updatePassword,
+        completePasswordReset,
         accounts,
         categories,
         transactions,

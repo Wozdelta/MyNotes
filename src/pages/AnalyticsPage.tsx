@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import '../styles/finance-pages.css';
 import {
   AlertTriangle,
   ArrowDownRight,
@@ -11,7 +12,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
-import { formatMonthYearBR, getPreviousMonthRange, todayString } from '../utils/date';
+import { formatDateBR, formatMonthYearBR, getPreviousMonthRange, todayString } from '../utils/date';
 import {
   calculateActualResult,
   calculateExpectedResult,
@@ -108,28 +109,33 @@ export const AnalyticsPage: React.FC = () => {
   const topExpenseCategory = categoryExpenses.list.length > 0 ? categoryExpenses.list[0] : null;
 
   return (
-    <div className="page-wrapper">
-      <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
+    <div className="page-wrapper finance-page analytics-page">
+      <header className="finance-page-heading">
+        <span className="finance-eyebrow">SEU DINHEIRO EM PERSPECTIVA</span>
+        <h1>
           Análises Financeiras
         </h1>
-        <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: 2 }}>
-          Relatórios detalhados, tendências de despesas e comparações reais de períodos.
+        <p>
+          Entenda seus gastos e acompanhe sua evolução.
         </p>
-      </div>
+      </header>
+
+      <section className="analytics-overview" aria-label="Resumo realizado do período">
+        <div className="analytics-overview-period"><Calendar size={15} /><span>{formatDateBR(periodFilter.startDate)} — {formatDateBR(periodFilter.endDate)}</span></div>
+        <div className="analytics-overview-totals">
+          <div><span><ArrowDownRight size={16} />Entrou</span><strong>{formatCurrency(currentActual.totalReceived)}</strong></div>
+          <div><span><ArrowUpRight size={16} />Saiu</span><strong>{formatCurrency(currentActual.totalPaid)}</strong></div>
+        </div>
+        <div className="analytics-overview-result"><span>Resultado realizado</span><strong>{formatCurrency(currentActual.totalReceived - currentActual.totalPaid)}</strong></div>
+      </section>
 
       {/* Destaques e Insights Automáticos (Requisito 17) */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-          gap: 14,
-          marginBottom: 24
-        }}
-      >
+      <details className="analytics-more">
+      <summary>Ver mais indicadores</summary>
+      <div className="analytics-insights">
         {/* Maior Categoria de Gasto */}
-        <div className="card">
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>MAIOR GASTO POR CATEGORIA</div>
+        <div className="card analytics-insight">
+          <div className="analytics-insight-label"><PieIcon size={16} />Maior gasto</div>
           {topExpenseCategory ? (
             <div style={{ marginTop: 6 }}>
               <div style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--expense-color)' }}>
@@ -147,8 +153,8 @@ export const AnalyticsPage: React.FC = () => {
         </div>
 
         {/* Variação de Despesas com Período Anterior */}
-        <div className="card">
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>VARIAÇÃO DE DESPESAS</div>
+        <div className="card analytics-insight">
+          <div className="analytics-insight-label"><TrendingDown size={16} />Variação de gastos</div>
           <div style={{ marginTop: 6 }}>
             <div style={{ fontSize: '1.125rem', fontWeight: 700, color: expenseComparison.diffAmount > 0 ? 'var(--expense-color)' : 'var(--income-color)' }}>
               {expenseComparison.diffAmount > 0 ? '+' : ''}{formatCurrency(expenseComparison.diffAmount)}
@@ -160,11 +166,11 @@ export const AnalyticsPage: React.FC = () => {
         </div>
 
         {/* Realizado vs Previsto */}
-        <div className="card">
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>PREVISTO VS REALIZADO (RECEITAS)</div>
+        <div className="card analytics-insight analytics-received">
+          <div className="analytics-insight-label"><ArrowDownRight size={16} />Receitas do período</div>
           <div style={{ marginTop: 6 }}>
             <div style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--income-color)' }}>
-              {formatCurrency(currentActual.totalReceived)} / {formatCurrency(currentExpected.expectedIncome)}
+              {formatCurrency(currentActual.totalReceived)} <span className="analytics-expected">recebidos de {formatCurrency(currentExpected.expectedIncome)} previstos</span>
             </div>
             <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: 2 }}>
               {currentExpected.expectedIncome > 0
@@ -174,52 +180,46 @@ export const AnalyticsPage: React.FC = () => {
           </div>
         </div>
       </div>
+      </details>
 
       {/* Navegação entre Abas de Análise */}
-      <div
-        style={{
-          display: 'flex',
-          gap: 8,
-          borderBottom: '1px solid var(--border-color)',
-          paddingBottom: 8,
-          marginBottom: 20,
-          overflowX: 'auto'
-        }}
-      >
+      <div className="finance-segment analytics-tabs" aria-label="Tipo de análise">
         <button
-          className={`btn btn-sm ${activeTab === 'categories' ? 'btn-primary' : 'btn-outline'}`}
+          aria-pressed={activeTab === 'categories'}
           onClick={() => setActiveTab('categories')}
         >
           <PieIcon size={16} />
-          <span>Categorias & Distribuição</span>
+          <span>Categorias</span>
         </button>
         <button
-          className={`btn btn-sm ${activeTab === 'comparison' ? 'btn-primary' : 'btn-outline'}`}
+          aria-pressed={activeTab === 'comparison'}
           onClick={() => setActiveTab('comparison')}
         >
           <BarChart3 size={16} />
-          <span>Comparativo com Mês Anterior</span>
+          <span>Comparativo</span>
         </button>
         <button
-          className={`btn btn-sm ${activeTab === 'recurrent' ? 'btn-primary' : 'btn-outline'}`}
+          aria-pressed={activeTab === 'recurrent'}
           onClick={() => setActiveTab('recurrent')}
         >
           <Layers size={16} />
-          <span>Recorrentes vs Eventuais</span>
+          <span>Recorrência</span>
         </button>
       </div>
 
       {/* ABA 1: Categorias e Distribuição */}
       {activeTab === 'categories' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
+        <div className="analytics-panel-grid">
           <div className="card">
             <h3 style={{ fontSize: '1.0625rem', fontWeight: 700, marginBottom: 16 }}>
-              Ranking de Gastos por Categoria
+              Para onde foi seu dinheiro
             </h3>
 
             {categoryExpenses.list.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '36px 0', color: 'var(--text-muted)' }}>
-                Nenhuma despesa efetivada no período selecionado.
+              <div className="finance-empty">
+                <PieIcon size={30} />
+                <strong>Sem gastos para analisar</strong>
+                <p>Suas despesas pagas aparecerão aqui, organizadas por categoria.</p>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -227,8 +227,8 @@ export const AnalyticsPage: React.FC = () => {
                   const pct = categoryExpenses.total > 0 ? (cat.amount / categoryExpenses.total) * 100 : 0;
                   return (
                     <div key={idx}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div className="analytics-ranking-row">
+                        <div className="analytics-ranking-name">
                           <span style={{ fontWeight: 700, fontSize: '0.875rem', width: 20, color: 'var(--text-subtle)' }}>
                             #{idx + 1}
                           </span>
@@ -268,7 +268,7 @@ export const AnalyticsPage: React.FC = () => {
           </div>
 
           {/* Tabela de Dados Formatados (Requisito 17: visualização também textual/tabela) */}
-          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          {categoryExpenses.list.length > 0 && <div className="card analytics-table-card" style={{ padding: 0, overflow: 'hidden' }}>
             <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)' }}>
               <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Tabela de Detalhamento</h3>
             </div>
@@ -309,7 +309,7 @@ export const AnalyticsPage: React.FC = () => {
                 </tbody>
               </table>
             </div>
-          </div>
+          </div>}
         </div>
       )}
 
@@ -318,14 +318,14 @@ export const AnalyticsPage: React.FC = () => {
         <div className="card">
           <div style={{ marginBottom: 16 }}>
             <h3 style={{ fontSize: '1.0625rem', fontWeight: 700 }}>
-              Comparativo: Período Atual vs Período Anterior
+              O que mudou neste período
             </h3>
             <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-              Comparando os valores efetivados ({periodFilter.startDate} até {periodFilter.endDate}) com o mês anterior ({previousRange.start} até {previousRange.end}).
+              Valores realizados de {formatDateBR(periodFilter.startDate)} a {formatDateBR(periodFilter.endDate)}, comparados com {formatDateBR(previousRange.start)} a {formatDateBR(previousRange.end)}.
             </p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+          <div className="analytics-panel-grid">
             {/* Entradas */}
             <div style={{ padding: 16, background: 'var(--bg-card-hover)', borderRadius: 'var(--radius-md)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--income-color)', marginBottom: 8 }}>
@@ -372,14 +372,14 @@ export const AnalyticsPage: React.FC = () => {
         <div className="card">
           <div style={{ marginBottom: 16 }}>
             <h3 style={{ fontSize: '1.0625rem', fontWeight: 700 }}>
-              Despesas Recorrentes vs Despesas Eventuais
+              Fixas ou eventuais?
             </h3>
             <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
               Entenda quanto do seu orçamento está comprometido com contas fixas (aluguel, condomínio, assinaturas) em relação a gastos variáveis.
             </p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
+          <div className="analytics-panel-grid">
             <div style={{ padding: 18, border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
               <span className="badge badge-primary" style={{ marginBottom: 8 }}>Fixas / Recorrentes</span>
               <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', marginTop: 6 }}>

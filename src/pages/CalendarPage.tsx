@@ -1,490 +1,117 @@
 import React, { useMemo, useState } from 'react';
-import {
-  Calendar as CalendarIcon,
-  CheckCircle,
-  ChevronLeft,
-  ChevronRight,
-  Edit2,
-  List,
-  Plus,
-  RotateCcw
-} from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Edit2, List, Plus } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { Transaction, TransactionType } from '../types';
-import {
-  addMonths,
-  formatDateBR,
-  formatMonthYearBR,
-  getDaysInMonth,
-  MONTH_NAMES_BR,
-  padZero,
-  todayString,
-  WEEKDAY_SHORT_NAMES_BR
-} from '../utils/date';
-import { formatCurrency, isOverdue } from '../utils/finance';
+import { addMonths, formatDateBR, getDaysInMonth, MONTH_NAMES_BR, padZero, todayString, WEEKDAY_SHORT_NAMES_BR } from '../utils/date';
+import { formatCurrency } from '../utils/finance';
+import '../styles/finance-pages.css';
 
 interface CalendarPageProps {
   onOpenCreateWithDate: (date: string, type?: TransactionType) => void;
   onOpenEdit: (transaction: Transaction) => void;
 }
 
-export const CalendarPage: React.FC<CalendarPageProps> = ({
-  onOpenCreateWithDate,
-  onOpenEdit
-}) => {
-  const { transactions, categories, accounts, completeTransaction, undoCompleteTransaction } = useFinance();
+export const CalendarPage: React.FC<CalendarPageProps> = ({ onOpenCreateWithDate, onOpenEdit }) => {
+  const { transactions, categories } = useFinance();
   const today = todayString();
-
-  // Mês e Ano exibidos no calendário
-  const [currentYearMonth, setCurrentYearMonth] = useState(() => {
-    const parts = today.split('-');
-    return `${parts[0]}-${parts[1]}`;
-  });
-
-  const [selectedDate, setSelectedDate] = useState<string>(today);
+  const [currentYearMonth, setCurrentYearMonth] = useState(today.slice(0, 7));
+  const [selectedDate, setSelectedDate] = useState(today);
   const [viewMode, setViewMode] = useState<'grid' | 'agenda'>('grid');
   const [calendarDateBase, setCalendarDateBase] = useState<'expected' | 'effective'>('expected');
-
-  // Filtros rápidos do calendário
-  const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-
-  const [yearStr, monthStr] = currentYearMonth.split('-');
-  const year = parseInt(yearStr, 10);
-  const month = parseInt(monthStr, 10);
-  const daysInMonth = getDaysInMonth(year, month);
-
-  // Primeiro dia da semana no mês (0 = Domingo, 1 = Segunda, etc.)
-  const firstDayOfWeek = new Date(year, month - 1, 1).getDay();
-
-  // Navegação
-  const handlePrevMonth = () => {
-    setCurrentYearMonth(prev => addMonths(`${prev}-01`, -1).substring(0, 7));
-  };
-
-  const handleNextMonth = () => {
-    setCurrentYearMonth(prev => addMonths(`${prev}-01`, 1).substring(0, 7));
-  };
-
-  const handleGoToday = () => {
-    const parts = today.split('-');
-    setCurrentYearMonth(`${parts[0]}-${parts[1]}`);
-    setSelectedDate(today);
-  };
-
-  // Mapeamentos
+  const [year, month] = currentYearMonth.split('-').map(Number);
   const categoryMap = new Map(categories.map(c => [c.id, c]));
-  const accountMap = new Map(accounts.map(a => [a.id, a.name]));
-
-  // Agrupamento de lançamentos por dia no mês atual
   const dailyTransactionsMap = useMemo(() => {
     const map = new Map<string, Transaction[]>();
-
     for (const t of transactions) {
       if (t.status === 'cancelled') continue;
-      if (filterType !== 'all' && t.type !== filterType) continue;
-      if (filterStatus === 'pending' && t.status !== 'pending') continue;
-      if (filterStatus === 'completed' && t.status !== 'completed') continue;
-
-      const dateToUse = calendarDateBase === 'effective' && t.effective_date ? t.effective_date : t.expected_date;
-      if (!dateToUse.startsWith(currentYearMonth)) continue;
-
-      const list = map.get(dateToUse) || [];
-      list.push(t);
-      map.set(dateToUse, list);
+      const date = calendarDateBase === 'effective' && t.effective_date ? t.effective_date : t.expected_date;
+      if (!date.startsWith(currentYearMonth)) continue;
+      map.set(date, [...(map.get(date) || []), t]);
     }
-
     return map;
-  }, [transactions, currentYearMonth, calendarDateBase, filterType, filterStatus]);
-
-  // Lançamentos do dia selecionado
-  const selectedDayTransactions = dailyTransactionsMap.get(selectedDate) || [];
-
-  // Totais do dia selecionado
-  const selectedDaySummary = useMemo(() => {
-    let income = 0;
-    let expense = 0;
-    for (const t of selectedDayTransactions) {
-      if (t.type === 'income') income += t.amount;
-      else expense += t.amount;
-    }
-    return {
-      income,
-      expense,
-      result: income - expense
-    };
-  }, [selectedDayTransactions]);
-
-  // Lista de dias no formato de grade com união discriminada estrita
-  type CalendarCell =
-    | { empty: true; key: string }
-    | { empty: false; day: number; dateStr: string; key: string };
-
-  const calendarCells: CalendarCell[] = [];
-  for (let i = 0; i < firstDayOfWeek; i++) {
-    calendarCells.push({ empty: true, key: `empty-${i}` });
-  }
-  for (let day = 1; day <= daysInMonth; day++) {
-    const dateStr = `${yearStr}-${monthStr}-${padZero(day)}`;
-    calendarCells.push({
-      empty: false,
-      day,
-      dateStr,
-      key: dateStr
-    });
-  }
+  }, [transactions, currentYearMonth, calendarDateBase]);
+  const selectedTransactions = dailyTransactionsMap.get(selectedDate) || [];
+  const income = selectedTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+  const expense = selectedTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+  const changeMonth = (step: number) => {
+    const next = addMonths(currentYearMonth + '-01', step).slice(0, 7);
+    setCurrentYearMonth(next);
+    setSelectedDate(next === today.slice(0, 7) ? today : next + '-01');
+  };
 
   return (
-    <div className="page-wrapper">
-      {/* Topo do Calendário */}
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
-          marginBottom: 20
-        }}
-      >
-        <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
-            Calendário Financeiro
-          </h1>
-          <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-            <span>Visualizando base:</span>
-            <button
-              onClick={() => setCalendarDateBase(calendarDateBase === 'expected' ? 'effective' : 'expected')}
-              className="badge"
-              style={{
-                cursor: 'pointer',
-                background: 'var(--bg-card-hover)',
-                color: 'var(--primary-color)',
-                border: '1px solid var(--border-color)',
-                fontWeight: 700
-              }}
-            >
-              {calendarDateBase === 'expected' ? 'Data Prevista (Agendados)' : 'Data Efetiva (Realizados)'} ⇄
-            </button>
-          </div>
+    <div className="page-wrapper finance-page agenda-page">
+      <header className="finance-page-heading">
+        <span className="finance-eyebrow">SEU MÊS, DIA A DIA</span>
+        <h1>Agenda financeira</h1>
+        <p>Acompanhe suas entradas e pagamentos.</p>
+      </header>
+      <div className="agenda-controls">
+        <div className="agenda-month-nav">
+          <button className="btn-icon" onClick={() => changeMonth(-1)} aria-label="Mês anterior"><ChevronLeft size={20} /></button>
+          <h2>{MONTH_NAMES_BR[month - 1]} <span>{year}</span></h2>
+          <button className="btn-icon" onClick={() => changeMonth(1)} aria-label="Próximo mês"><ChevronRight size={20} /></button>
         </div>
-
-        {/* Controles de Navegação */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button className="btn btn-outline btn-sm" onClick={handlePrevMonth} aria-label="Mês anterior">
-            <ChevronLeft size={16} />
-          </button>
-          <span style={{ fontWeight: 700, minWidth: 140, textAlign: 'center', fontSize: '0.9375rem' }}>
-            {MONTH_NAMES_BR[month - 1]} de {year}
-          </span>
-          <button className="btn btn-outline btn-sm" onClick={handleNextMonth} aria-label="Próximo mês">
-            <ChevronRight size={16} />
-          </button>
-          <button className="btn btn-outline btn-sm" onClick={handleGoToday}>
-            Hoje
-          </button>
-
-          {/* Alternar Grid vs Agenda */}
-          <div style={{ display: 'flex', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-            <button
-              className="btn-icon"
-              style={{
-                width: 34,
-                height: 34,
-                borderRadius: 0,
-                background: viewMode === 'grid' ? 'var(--primary-light)' : 'transparent',
-                color: viewMode === 'grid' ? 'var(--primary-color)' : 'var(--text-muted)'
-              }}
-              onClick={() => setViewMode('grid')}
-              title="Visualização em Grade"
-            >
-              <CalendarIcon size={16} />
-            </button>
-            <button
-              className="btn-icon"
-              style={{
-                width: 34,
-                height: 34,
-                borderRadius: 0,
-                background: viewMode === 'agenda' ? 'var(--primary-light)' : 'transparent',
-                color: viewMode === 'agenda' ? 'var(--primary-color)' : 'var(--text-muted)'
-              }}
-              onClick={() => setViewMode('agenda')}
-              title="Visualização em Lista / Agenda"
-            >
-              <List size={16} />
-            </button>
+        <div className="agenda-toolbar">
+          <div className="finance-segment agenda-date-base" aria-label="Data dos lançamentos">
+            <button aria-pressed={calendarDateBase === 'expected'} onClick={() => setCalendarDateBase('expected')}>Data prevista</button>
+            <button aria-pressed={calendarDateBase === 'effective'} onClick={() => setCalendarDateBase('effective')}>Data efetiva</button>
+          </div>
+          <button className="btn btn-outline btn-sm" onClick={() => { setCurrentYearMonth(today.slice(0, 7)); setSelectedDate(today); }}>Hoje</button>
+          <div className="finance-segment" aria-label="Visualização da agenda">
+            <button aria-label="Calendário" aria-pressed={viewMode === 'grid'} onClick={() => setViewMode('grid')}><CalendarIcon size={17} /></button>
+            <button aria-label="Lista de lançamentos" aria-pressed={viewMode === 'agenda'} onClick={() => setViewMode('agenda')}><List size={17} /></button>
           </div>
         </div>
       </div>
-
-      {/* Layout Split: Calendário à esquerda / Detalhes do Dia à direita */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: viewMode === 'grid' ? 'repeat(auto-fit, minmax(320px, 1fr))' : '1fr',
-          gap: 20
-        }}
-      >
-        {/* Visão Grade */}
-        {viewMode === 'grid' && (
-          <div className="card" style={{ padding: 16 }}>
-            {/* Dias da Semana */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(7, 1fr)',
-                textAlign: 'center',
-                fontWeight: 700,
-                fontSize: '0.75rem',
-                color: 'var(--text-muted)',
-                marginBottom: 8,
-                paddingBottom: 8,
-                borderBottom: '1px solid var(--border-color)'
-              }}
-            >
-              {WEEKDAY_SHORT_NAMES_BR.map((wd, i) => (
-                <div key={i}>{wd}</div>
-              ))}
-            </div>
-
-            {/* Grade de Células */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
-              {calendarCells.map(cell => {
-                if (cell.empty) {
-                  return (
-                    <div
-                      key={cell.key}
-                      style={{
-                        minHeight: 64,
-                        background: 'transparent',
-                        borderRadius: 'var(--radius-sm)'
-                      }}
-                    />
-                  );
-                }
-
-                const dayTxs = dailyTransactionsMap.get(cell.dateStr) || [];
-                const isSelected = cell.dateStr === selectedDate;
-                const isToday = cell.dateStr === today;
-
-                let dayIncome = 0;
-                let dayExpense = 0;
-                for (const t of dayTxs) {
-                  if (t.type === 'income') dayIncome += t.amount;
-                  else dayExpense += t.amount;
-                }
-
-                return (
-                  <button
-                    key={cell.key}
-                    onClick={() => setSelectedDate(cell.dateStr)}
-                    style={{
-                      minHeight: 68,
-                      padding: 6,
-                      background: isSelected
-                        ? 'var(--primary-light)'
-                        : isToday
-                        ? 'var(--bg-card-hover)'
-                        : 'var(--bg-card)',
-                      border: isSelected
-                        ? '2px solid var(--primary-color)'
-                        : isToday
-                        ? '1px solid var(--primary-color)'
-                        : '1px solid var(--border-color)',
-                      borderRadius: 'var(--radius-sm)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'flex-start',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: '0.8125rem',
-                        fontWeight: isSelected || isToday ? 800 : 500,
-                        color: isSelected
-                          ? 'var(--primary-color)'
-                          : isToday
-                          ? 'var(--primary-color)'
-                          : 'var(--text-main)',
-                        marginBottom: 4
-                      }}
-                    >
-                      {cell.day}
-                    </div>
-
-                    {/* Indicadores resumidos */}
-                    {dayTxs.length > 0 && (
-                      <div style={{ width: '100%', fontSize: '0.6875rem', lineHeight: 1.2 }}>
-                        {dayIncome > 0 && (
-                          <div style={{ color: 'var(--income-color)', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden' }}>
-                            +{formatCurrency(dayIncome)}
-                          </div>
-                        )}
-                        {dayExpense > 0 && (
-                          <div style={{ color: 'var(--expense-color)', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden' }}>
-                            -{formatCurrency(dayExpense)}
-                          </div>
-                        )}
-                        {dayTxs.length > 2 && (
-                          <div style={{ color: 'var(--text-subtle)', fontSize: '0.625rem', marginTop: 2 }}>
-                            {dayTxs.length} lançamentos
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </button>
-                );
+      <div className="agenda-layout">
+        <section className="card agenda-calendar" aria-label="Lançamentos do mês">
+          {viewMode === 'grid' ? <>
+            <div className="agenda-weekdays">{WEEKDAY_SHORT_NAMES_BR.map(day => <span key={day}>{day}</span>)}</div>
+            <div className="agenda-days">
+              {Array.from({ length: new Date(year, month - 1, 1).getDay() }, (_, i) => <span key={'empty-' + i} />)}
+              {Array.from({ length: getDaysInMonth(year, month) }, (_, i) => {
+                const day = i + 1;
+                const date = currentYearMonth + '-' + padZero(day);
+                const items = dailyTransactionsMap.get(date) || [];
+                const realized = transactions.filter(t => t.status === 'completed' && t.effective_date === date);
+                const net = realized.reduce((sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount), 0);
+                const tone = date < today && realized.length ? net >= 0 ? 'positive' : 'negative' : '';
+                return <button key={date} className={'agenda-day ' + tone + (date === selectedDate ? ' selected' : '')}
+                  aria-pressed={date === selectedDate} aria-current={date === today ? 'date' : undefined}
+                  aria-label={formatDateBR(date) + ', ' + items.length + ' lançamentos' + (date < today && realized.length ? ', resultado realizado ' + formatCurrency(net) : '')}
+                  onClick={() => setSelectedDate(date)}>
+                  <span>{day}</span>
+                  {items.length > 0 && <small>{items.length} lanç.</small>}
+                </button>;
               })}
             </div>
+            <div className="agenda-legend"><span><i className="positive" />Entradas ≥ saídas</span><span><i className="negative" />Saídas maiores</span><span>Somente dias passados e valores realizados</span></div>
+          </> : <div className="agenda-month-list">
+            {dailyTransactionsMap.size === 0 && <div className="finance-empty"><CalendarIcon size={28} /><strong>Seu mês está livre</strong><p>Nenhum lançamento neste mês.</p></div>}
+            {Array.from(dailyTransactionsMap.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([date, items]) =>
+              <button key={date} className="agenda-list-day" aria-pressed={date === selectedDate} onClick={() => setSelectedDate(date)}>
+                <strong>{formatDateBR(date)}</strong>
+                {items.map(t => <span className="agenda-list-row" key={t.id}><span>{t.description}</span><b className={t.type === 'income' ? 'finance-income' : 'finance-expense'}>{t.type === 'income' ? '+' : '−'}{formatCurrency(t.amount)}</b></span>)}
+              </button>)}
+          </div>}
+        </section>
+        <section className="card agenda-detail">
+          <div className="agenda-detail-heading"><div><span className="finance-eyebrow">{selectedDate === today ? 'HOJE' : 'DIA SELECIONADO'}</span><h2>{formatDateBR(selectedDate)}</h2></div>
+            <button className="btn btn-primary btn-sm" onClick={() => onOpenCreateWithDate(selectedDate)}><Plus size={17} />Adicionar</button>
           </div>
-        )}
-
-        {/* Visão de Agenda (Lista de dias com transações) */}
-        {viewMode === 'agenda' && (
-          <div className="card" style={{ padding: 16 }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: 12 }}>
-              Agenda de Lançamentos ({MONTH_NAMES_BR[month - 1]} de {year})
-            </h3>
-            {Array.from(dailyTransactionsMap.entries())
-              .sort(([dA], [dB]) => dA.localeCompare(dB))
-              .map(([dStr, txs]) => (
-                <div
-                  key={dStr}
-                  style={{
-                    padding: '12px 14px',
-                    borderBottom: '1px solid var(--border-color)',
-                    background: dStr === selectedDate ? 'var(--primary-light)' : 'transparent',
-                    borderRadius: 'var(--radius-sm)',
-                    cursor: 'pointer'
-                  }}
-                  onClick={() => setSelectedDate(dStr)}
-                >
-                  <div style={{ fontWeight: 700, fontSize: '0.875rem', marginBottom: 6, color: 'var(--text-main)' }}>
-                    {formatDateBR(dStr)}
-                  </div>
-                  {txs.map(t => (
-                    <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', margin: '4px 0' }}>
-                      <span>{t.description}</span>
-                      <span style={{ fontWeight: 700, color: t.type === 'income' ? 'var(--income-color)' : 'var(--expense-color)' }}>
-                        {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ))}
+          <div className="agenda-summary">
+            <div><span>Entradas</span><strong className="finance-income">{formatCurrency(income)}</strong></div>
+            <div><span>Saídas</span><strong className="finance-expense">{formatCurrency(expense)}</strong></div>
+            <div><span>Resultado do dia</span><strong className={income >= expense ? 'finance-income' : 'finance-expense'}>{formatCurrency(income - expense)}</strong></div>
           </div>
-        )}
-
-        {/* Painel de Detalhes do Dia Selecionado */}
-        <div className="card" style={{ padding: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>DIA SELECIONADO</div>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 800 }}>{formatDateBR(selectedDate)}</h2>
-            </div>
-            <button
-              className="btn btn-primary btn-sm"
-              onClick={() => onOpenCreateWithDate(selectedDate)}
-            >
-              <Plus size={16} />
-              <span>Adicionar</span>
-            </button>
-          </div>
-
-          {/* Resumo do Dia */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr 1fr',
-              gap: 8,
-              padding: '10px 14px',
-              background: 'var(--bg-card-hover)',
-              borderRadius: 'var(--radius-md)',
-              marginBottom: 16,
-              textAlign: 'center'
-            }}
-          >
-            <div>
-              <div style={{ fontSize: '0.6875rem', color: 'var(--income-color)', fontWeight: 700 }}>ENTRADAS</div>
-              <div style={{ fontWeight: 800, fontSize: '0.875rem' }}>+{formatCurrency(selectedDaySummary.income)}</div>
-            </div>
-            <div>
-              <div style={{ fontSize: '0.6875rem', color: 'var(--expense-color)', fontWeight: 700 }}>DESPESAS</div>
-              <div style={{ fontWeight: 800, fontSize: '0.875rem' }}>-{formatCurrency(selectedDaySummary.expense)}</div>
-            </div>
-            <div>
-              <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 700 }}>SALDO DIA</div>
-              <div
-                style={{
-                  fontWeight: 800,
-                  fontSize: '0.875rem',
-                  color: selectedDaySummary.result >= 0 ? 'var(--income-color)' : 'var(--expense-color)'
-                }}
-              >
-                {selectedDaySummary.result > 0 ? '+' : ''}{formatCurrency(selectedDaySummary.result)}
-              </div>
-            </div>
-          </div>
-
-          {/* Lista de Lançamentos do Dia */}
-          {selectedDayTransactions.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '36px 0', color: 'var(--text-muted)' }}>
-              Nenhum lançamento previsto ou realizado neste dia.
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {selectedDayTransactions.map(t => {
-                const cat = categoryMap.get(t.category_id);
-                const isIncome = t.type === 'income';
-                return (
-                  <div
-                    key={t.id}
-                    style={{
-                      padding: '10px 14px',
-                      background: 'var(--bg-card-hover)',
-                      borderRadius: 'var(--radius-md)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: 10
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{t.description}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                        {cat?.name || 'Geral'} • {t.status === 'completed' ? (isIncome ? 'Recebida' : 'Paga') : 'Pendente'}
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div
-                        style={{
-                          fontWeight: 800,
-                          fontSize: '0.9375rem',
-                          color: isIncome ? 'var(--income-color)' : 'var(--expense-color)'
-                        }}
-                      >
-                        {isIncome ? '+' : '-'}{formatCurrency(t.amount)}
-                      </div>
-                      <button
-                        className="btn-icon"
-                        style={{ width: 30, height: 30 }}
-                        onClick={() => onOpenEdit(t)}
-                        title="Editar lançamento"
-                      >
-                        <Edit2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+          {selectedTransactions.length === 0 ? <div className="finance-empty"><CalendarIcon size={28} /><strong>Nada agendado por aqui</strong><p>Adicione uma entrada ou um pagamento para este dia.</p></div> :
+            <div className="agenda-transactions">{selectedTransactions.map(t => <div className="agenda-transaction" key={t.id}>
+              <div><strong>{t.description}</strong><small>{categoryMap.get(t.category_id)?.name || 'Geral'} · {t.status === 'completed' ? t.type === 'income' ? 'Recebida' : 'Paga' : 'Pendente'}</small></div>
+              <b className={t.type === 'income' ? 'finance-income' : 'finance-expense'}>{t.type === 'income' ? '+' : '−'}{formatCurrency(t.amount)}</b>
+              <button className="btn-icon" onClick={() => onOpenEdit(t)} aria-label={'Editar ' + t.description}><Edit2 size={16} /></button>
+            </div>)}</div>}
+        </section>
       </div>
     </div>
   );

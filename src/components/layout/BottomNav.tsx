@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ArrowLeftRight,
   BarChart3,
   Calendar,
+  ChevronRight,
   CreditCard,
   FileText,
   FolderTree,
@@ -17,6 +18,7 @@ import {
   X
 } from 'lucide-react';
 import { Modal } from '../common/Modal';
+import '../../styles/quick-actions.css';
 
 interface BottomNavProps {
   currentTab: string;
@@ -33,14 +35,19 @@ export const BottomNav: React.FC<BottomNavProps> = ({
 }) => {
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  useEffect(() => {
+    const close = () => { setShowAddMenu(false); setShowMoreMenu(false); };
+    window.addEventListener('mynotes:close-guide-forms', close);
+    return () => window.removeEventListener('mynotes:close-guide-forms', close);
+  }, []);
 
   const moreItems = [
-    { id: 'recurrences', label: 'Recorrências', icon: Repeat },
-    { id: 'notes', label: 'Anotações & Possibilidades', icon: FileText },
-    { id: 'analytics', label: 'Análises Gráficas', icon: BarChart3 },
-    { id: 'accounts', label: 'Contas Financeiras', icon: Wallet },
-    { id: 'categories', label: 'Categorias', icon: FolderTree },
-    { id: 'settings', label: 'Configurações & Perfil', icon: Settings }
+    { id: 'recurrences', label: 'Recorrências', description: 'Entradas e contas fixas', icon: Repeat, color: '#8b5cf6' },
+    { id: 'notes', label: 'Anotações', description: 'Ideias e possibilidades', icon: FileText, color: '#d97706' },
+    { id: 'analytics', label: 'Análises', description: 'Entenda seus resultados', icon: BarChart3, color: '#0284c7' },
+    { id: 'accounts', label: 'Minhas contas', description: 'Saldos e carteiras', icon: Wallet, color: '#059669' },
+    { id: 'categories', label: 'Categorias', description: 'Organize os lançamentos', icon: FolderTree, color: '#db2777' },
+    { id: 'settings', label: 'Configurações', description: 'Perfil e preferências', icon: Settings, color: '#64748b' }
   ];
 
   return (
@@ -98,6 +105,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
             transform: 'translateY(-12px)'
           }}
           aria-label="Adicionar novo registro"
+          data-guide="add"
         >
           <Plus size={24} />
         </button>
@@ -144,79 +152,77 @@ export const BottomNav: React.FC<BottomNavProps> = ({
       </nav>
 
       {/* Modal de Ação Rápida Mobile */}
-      <Modal isOpen={showAddMenu} onClose={() => setShowAddMenu(false)} title="Nova Operação" maxWidth="360px">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <Modal isOpen={showAddMenu} onClose={() => setShowAddMenu(false)} title="O que vamos registrar?" maxWidth="480px" variant="action-sheet">
+        <p className="quick-actions-intro">Escolha uma opção para cuidar do seu dinheiro.</p>
+        <div className="quick-actions">
           <button
-            className="btn btn-income"
-            style={{ width: '100%', justifyContent: 'flex-start', padding: '14px 18px' }}
+            className="quick-action quick-action-income"
+            data-guide="income-create"
             onClick={() => {
               setShowAddMenu(false);
               onOpenNewTransaction('income');
             }}
           >
-            <TrendingUp size={20} />
-            <span style={{ fontSize: '1rem' }}>Nova Entrada (Receita)</span>
+            <span className="quick-action-icon"><TrendingUp size={24} /></span>
+            <span className="quick-action-copy"><strong>Nova entrada</strong><span>Salário, renda extra e recebimentos</span></span>
+            <ChevronRight className="quick-action-chevron" size={18} />
           </button>
 
           <button
-            className="btn btn-expense"
-            style={{ width: '100%', justifyContent: 'flex-start', padding: '14px 18px' }}
+            className="quick-action quick-action-expense"
+            data-guide="expense-create"
             onClick={() => {
               setShowAddMenu(false);
               onOpenNewTransaction('expense');
             }}
           >
-            <TrendingDown size={20} />
-            <span style={{ fontSize: '1rem' }}>Nova Despesa (Gasto)</span>
+            <span className="quick-action-icon"><TrendingDown size={24} /></span>
+            <span className="quick-action-copy"><strong>Nova despesa</strong><span>Compras, contas e pagamentos</span></span>
+            <ChevronRight className="quick-action-chevron" size={18} />
           </button>
 
           <button
-            className="btn btn-outline"
-            style={{ width: '100%', justifyContent: 'flex-start', padding: '14px 18px' }}
+            className="quick-action quick-action-transfer"
             onClick={() => {
               setShowAddMenu(false);
               onOpenTransfer();
             }}
           >
-            <ArrowLeftRight size={20} color="var(--primary-color)" />
-            <span style={{ fontSize: '1rem' }}>Transferência entre Contas</span>
+            <span className="quick-action-icon"><ArrowLeftRight size={23} /></span>
+            <span className="quick-action-copy"><strong>Transferir dinheiro</strong><span>Movimente entre suas contas</span></span>
+            <ChevronRight className="quick-action-chevron" size={18} />
           </button>
         </div>
+        <button className="quick-actions-cancel" onClick={() => setShowAddMenu(false)}>Agora não</button>
       </Modal>
 
       {/* Modal de Menu Completo Mobile */}
-      <Modal isOpen={showMoreMenu} onClose={() => setShowMoreMenu(false)} title="Todos os Módulos" maxWidth="380px">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <Modal isOpen={showMoreMenu} onClose={() => setShowMoreMenu(false)} title="Seu espaço financeiro" maxWidth="480px" variant="action-sheet">
+        <p className="quick-actions-intro">Tudo para organizar sua vida financeira.</p>
+        <nav className="module-menu" aria-label="Módulos do aplicativo">
           {moreItems.map(item => {
             const Icon = item.icon;
             const isActive = currentTab === item.id;
             return (
               <button
                 key={item.id}
+                className="module-menu-item"
+                aria-current={isActive ? 'page' : undefined}
                 onClick={() => {
                   onSelectTab(item.id);
                   setShowMoreMenu(false);
                 }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 14,
-                  padding: '12px 16px',
-                  borderRadius: 'var(--radius-md)',
-                  background: isActive ? 'var(--primary-light)' : 'var(--bg-card-hover)',
-                  color: isActive ? 'var(--primary-color)' : 'var(--text-main)',
-                  fontWeight: isActive ? 700 : 500,
-                  fontSize: '0.9375rem',
-                  width: '100%',
-                  textAlign: 'left'
-                }}
+                style={{ '--module-color': item.color } as React.CSSProperties}
               >
-                <Icon size={20} color={isActive ? 'var(--primary-color)' : 'var(--text-muted)'} />
-                <span>{item.label}</span>
+                <span className="module-menu-icon"><Icon size={22} /></span>
+                {isActive && <span className="module-menu-current">Atual</span>}
+                <strong>{item.label}</strong>
+                <span className="module-menu-description">{item.description}</span>
               </button>
             );
           })}
-        </div>
+        </nav>
+        <button className="quick-actions-cancel" onClick={() => setShowMoreMenu(false)}>Fechar menu</button>
       </Modal>
     </>
   );

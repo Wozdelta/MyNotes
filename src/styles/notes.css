@@ -1,0 +1,40 @@
+.notes-eyebrow { color: var(--primary-color); font-weight: 800; font-size: .625rem; letter-spacing: .1em; }
+.notes-page h1 { margin: 4px 0; }
+.notes-page .card { border-radius: 18px; min-width: 0; }
+.notes-tip { display: flex; align-items: flex-start; gap: 12px; padding: 15px; background: var(--primary-light); border: 1px solid color-mix(in srgb, var(--primary-color) 18%, var(--border-color)); border-radius: 16px; margin-bottom: 16px; }
+.notes-tip > svg { color: var(--primary-color); flex-shrink: 0; margin-top: 2px; }
+.notes-tip strong { display: block; font-size: .8125rem; margin-bottom: 4px; }
+.notes-tip p { font-size: .75rem; line-height: 1.6; color: var(--text-muted); }
+.notes-filters { padding: 12px; margin-bottom: 16px; }
+.notes-filter-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.notes-search { position: relative; grid-column: 1 / -1; }
+.notes-filter-grid .custom-select-trigger { min-height: 44px; }
+.notes-filter-grid .custom-select-trigger > span { white-space: normal; text-align: left; overflow-wrap: anywhere; }
+.notes-empty { text-align: center; padding: 28px 20px; background: linear-gradient(160deg, var(--bg-card), var(--primary-light)); }
+.notes-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 14px; }
+.note-card { border-top: 3px solid var(--primary-color); overflow-wrap: anywhere; }
+.note-card.note-income { border-top-color: var(--income-color); }
+.note-card.note-expense { border-top-color: var(--expense-color); }
+.note-card-actions { flex-wrap: wrap; gap: 12px; }
+.note-card-actions > div { margin-left: auto; }
+.note-card-actions .btn { min-height: 42px; }
+.note-form-intro { font-size: .8rem; line-height: 1.6; color: var(--text-muted); margin: 4px 0 20px; }
+.note-type-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.note-type-options .btn { flex-direction: column; gap: 8px; padding: 13px 4px; border-radius: 14px; font-size: .75rem; }
+.note-type-options .btn[aria-pressed="true"] { box-shadow: 0 3px 10px rgb(15 23 42 / 12%); }
+.note-type-options button:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 3px; }
+.note-form-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.note-optional { font-size: .65rem; color: var(--text-subtle); font-weight: 400; margin-left: 5px; }
+.note-form .form-input, .note-form .form-textarea, .note-form .custom-select-trigger { border-radius: 12px; }
+.note-form .modal-footer { flex-wrap: wrap; }
+@media (max-width: 600px) {
+  .note-form-columns { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .note-form .form-input, .note-form .form-textarea { font-size: 16px; }
+  .note-form .form-label { font-size: .8125rem; }
+  .note-form .modal-footer > button { flex: 1 1 120px; min-height: 46px; }
+  .notes-page > div:first-child > .btn { width: 100%; min-height: 44px; border-radius: 12px; }
+}
+@media (min-width: 768px) {
+  .notes-filter-grid { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); }
+  .notes-search { grid-column: auto; }
+}

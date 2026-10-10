@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import '../styles/notes.css';
 import {
   ArrowRightCircle,
   CheckCircle,
@@ -12,6 +13,7 @@ import {
   XCircle
 } from 'lucide-react';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
+import { Select } from '../components/common/Select';
 import { useFinance } from '../context/FinanceContext';
 import { FinancialNote, NoteType } from '../types';
 import { formatCurrency } from '../utils/finance';
@@ -57,7 +59,7 @@ export const NotesPage: React.FC<NotesPageProps> = ({
   };
 
   return (
-    <div className="page-wrapper">
+    <div className="page-wrapper notes-page">
       <div
         style={{
           display: 'flex',
@@ -69,11 +71,12 @@ export const NotesPage: React.FC<NotesPageProps> = ({
         }}
       >
         <div>
+          <span className="notes-eyebrow">ESPAÇO PARA SUAS IDEIAS</span>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
-            Anotações & Possibilidades
+            Anotações
           </h1>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: 2 }}>
-            Planeje gastos e receitas que ainda não têm data confirmada (ex: trocas de pneus, manutenções, freelas).
+            Guarde ideias de hoje. Planeje os próximos passos.
           </p>
         </div>
 
@@ -84,24 +87,15 @@ export const NotesPage: React.FC<NotesPageProps> = ({
       </div>
 
       {/* Explicação da Regra Financeira */}
-      <div
-        style={{
-          background: 'var(--bg-card-hover)',
-          border: '1px solid var(--border-color)',
-          borderRadius: 'var(--radius-md)',
-          padding: '12px 16px',
-          marginBottom: 20,
-          fontSize: '0.8125rem',
-          color: 'var(--text-muted)'
-        }}
-      >
-        💡 <strong>Nota de precisão:</strong> As anotações não afetam seu saldo atual ou resultado financeiro principal até que você decida transformá-las em um lançamento real.
+      <div className="notes-tip">
+        <Sparkles size={20} />
+        <div><strong>Planeje sem mexer no saldo</strong><p>Uma ideia só entra nas suas finanças quando você a transforma em lançamento.</p></div>
       </div>
 
       {/* Filtros e Busca */}
-      <div className="card" style={{ padding: 14, marginBottom: 20 }}>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-          <div style={{ position: 'relative', flex: '1 1 200px' }}>
+      <div className="card notes-filters">
+        <div className="notes-filter-grid">
+          <div className="notes-search">
             <Search
               size={16}
               style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-subtle)' }}
@@ -110,15 +104,16 @@ export const NotesPage: React.FC<NotesPageProps> = ({
               type="text"
               className="form-input"
               style={{ paddingLeft: 36, minHeight: 38 }}
-              placeholder="Buscar anotações ou ideias..."
+              placeholder="Buscar uma ideia..."
+              aria-label="Buscar anotações"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
           </div>
 
-          <select
+          <Select
             className="form-select"
-            style={{ flex: '1 1 140px', minHeight: 38 }}
+            style={{ minWidth: 0, minHeight: 44 }}
             value={filterType}
             onChange={e => setFilterType(e.target.value)}
             aria-label="Filtrar por tipo de anotação"
@@ -127,26 +122,26 @@ export const NotesPage: React.FC<NotesPageProps> = ({
             <option value="possible_income">Possível Entrada</option>
             <option value="possible_expense">Possível Despesa</option>
             <option value="note">Lembrete</option>
-          </select>
+          </Select>
 
-          <select
+          <Select
             className="form-select"
-            style={{ flex: '1 1 140px', minHeight: 38 }}
+            style={{ minWidth: 0, minHeight: 44 }}
             value={filterStatus}
             onChange={e => setFilterStatus(e.target.value)}
             aria-label="Filtrar por status"
           >
             <option value="open">Em Aberto</option>
-            <option value="converted">Convertidas em Lançamento</option>
+            <option value="converted">Convertidas</option>
             <option value="discarded">Descartadas</option>
             <option value="all">Todas situações</option>
-          </select>
+          </Select>
         </div>
       </div>
 
       {/* Grid de Cards de Anotação */}
       {filteredNotes.length === 0 ? (
-        <div className="card" style={{ textAlign: 'center', padding: '48px 20px' }}>
+        <div className="card notes-empty">
           <div
             style={{
               width: 56,
@@ -163,17 +158,17 @@ export const NotesPage: React.FC<NotesPageProps> = ({
             <FileText size={26} />
           </div>
           <h3 style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: 6 }}>
-            Nenhuma anotação nesta categoria
+            {notes.length === 0 ? 'Uma ideia pode ser o começo' : 'Nenhuma ideia por aqui'}
           </h3>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', maxWidth: 420, margin: '0 auto 20px auto' }}>
-            Anote projetos futuros, manutenções previstas ou oportunidades sem data definida para não esquecer.
+            {notes.length === 0 ? 'Uma viagem, um conserto ou uma renda extra. Guarde aqui o que você quer planejar.' : 'Não encontramos anotações com esses filtros. Experimente outra busca.'}
           </p>
-          <button className="btn btn-primary" onClick={onOpenCreate}>
-            Criar Primeira Anotação
+          <button className="btn btn-primary" onClick={notes.length === 0 ? onOpenCreate : () => { setSearch(''); setFilterType('all'); setFilterStatus('all'); }}>
+            {notes.length === 0 ? 'Anotar minha primeira ideia' : 'Limpar filtros'}
           </button>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
+        <div className="notes-grid">
           {filteredNotes.map(n => {
             const isIncome = n.type === 'possible_income';
             const isExpense = n.type === 'possible_expense';
@@ -192,7 +187,7 @@ export const NotesPage: React.FC<NotesPageProps> = ({
             return (
               <div
                 key={n.id}
-                className="card"
+                className={`card note-card ${isIncome ? 'note-income' : isExpense ? 'note-expense' : 'note-reminder'}`}
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
@@ -240,6 +235,7 @@ export const NotesPage: React.FC<NotesPageProps> = ({
 
                 {/* Ações do Card */}
                 <div
+                  className="note-card-actions"
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -257,7 +253,7 @@ export const NotesPage: React.FC<NotesPageProps> = ({
                       title="Transformar em lançamento real no extrato"
                     >
                       <Sparkles size={14} />
-                      <span>Transformar em Lançamento</span>
+                      <span>Criar lançamento</span>
                     </button>
                   ) : n.status === 'converted' ? (
                     <span style={{ fontSize: '0.75rem', color: 'var(--income-color)', fontWeight: 600 }}>

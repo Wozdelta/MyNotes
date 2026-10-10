@@ -37,6 +37,13 @@ describe('Atomic Transfers & Notes Conversion Tests', () => {
       status: 'open'
     });
 
+    await repo.createAccount({
+      name: 'Conta de teste',
+      initial_balance: 0,
+      initial_balance_date: '2026-10-01',
+      is_archived: false
+    });
+
     const accounts = await repo.getAccounts();
     const categories = await repo.getCategories();
 

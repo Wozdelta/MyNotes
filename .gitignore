@@ -12,11 +12,29 @@ dist
 dist-ssr
 *.local
 
+# Build and tool caches
+.vite/
+.cache/
+*.tsbuildinfo
+
+# Test reports
+coverage/
+playwright-report/
+test-results/
+
+# Local deployment metadata
+.vercel/
+.netlify/
+supabase/.temp/
+supabase/.branches/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
+Thumbs.db
+Desktop.ini
 *.suo
 *.ntvs*
 *.njsproj
@@ -25,11 +43,12 @@ dist-ssr
 
 # Environment files with credentials
 .env
-.env.production
-.env.local
-.env.*.local
+.env.*
 !.env.example
+!.env.*.example
 
 # Temporary test / zip artifacts
 temp_extract_test/
 *.zip
+*.tmp
+*.temp

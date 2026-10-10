@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { KeyRound, Lock, Mail, Shield, User } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
+import brandIcon from '../../Ícone Teal com N Branco e Detalhe Verde.png';
 
 interface AuthPageProps {
   initialMode?: 'login' | 'signup' | 'forgot' | 'reset';
 }
 
 export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => {
-  const { login, signup, resetPassword, updatePassword, isSubmitting } = useFinance();
+  const { login, signup, resetPassword, verifyRecoveryCode, completePasswordReset, logout, isSubmitting } = useFinance();
 
   const [mode, setMode] = useState<'login' | 'signup' | 'forgot' | 'reset'>(initialMode);
   const [email, setEmail] = useState('');
@@ -16,6 +17,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => 
   const [fullName, setFullName] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [codeSent, setCodeSent] = useState(false);
+  const [code, setCode] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,12 +40,15 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => 
       } else if (mode === 'signup') {
         await signup(email, password, fullName);
       } else if (mode === 'forgot') {
+        if (codeSent) {
+          await verifyRecoveryCode(email, code);
+          return;
+        }
         await resetPassword(email);
-        setSuccessMsg('E-mail de recuperação enviado com sucesso! Verifique sua caixa de entrada.');
+        setCodeSent(true);
+        setSuccessMsg('Se este e-mail estiver cadastrado, você receberá as instruções. Digite o código recebido ou abra o link do e-mail. Confira também o spam.');
       } else if (mode === 'reset') {
-        await updatePassword(password);
-        setSuccessMsg('Senha redefinida com sucesso! Você já pode fazer login com sua nova senha.');
-        setTimeout(() => setMode('login'), 2000);
+        await completePasswordReset(password);
       }
     } catch (err: any) {
       setErrorMsg(err.message || 'Erro ao processar solicitação');
@@ -71,24 +77,18 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => 
       >
         {/* Brand */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div
+          <img
+            src={brandIcon}
+            alt=""
+            width={72}
+            height={72}
             style={{
-              width: 52,
-              height: 52,
-              borderRadius: 'var(--radius-md)',
-              background: 'linear-gradient(135deg, #10b981 0%, #0284c7 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#fff',
-              fontWeight: 800,
-              fontSize: '1.5rem',
+              display: 'block',
+              objectFit: 'contain',
               margin: '0 auto 12px auto',
-              boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)'
+              filter: 'drop-shadow(0 4px 8px rgba(2, 132, 199, 0.18))'
             }}
-          >
-            MN
-          </div>
+          />
           <h1 style={{ fontSize: '1.375rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
             MyNotes
           </h1>
@@ -167,10 +167,21 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => 
                   style={{ paddingLeft: 38 }}
                   placeholder="seu@email.com"
                   value={email}
+                  readOnly={mode === 'forgot' && codeSent}
                   onChange={e => setEmail(e.target.value)}
                   required
                 />
               </div>
+            </div>
+          )}
+
+          {mode === 'forgot' && codeSent && (
+            <div className="form-group">
+              <label className="form-label" htmlFor="recovery-code">Código do e-mail</label>
+              <input id="recovery-code" className="form-input" inputMode="numeric" autoComplete="one-time-code" value={code}
+                onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 10))} required pattern="[0-9]{6,10}" placeholder="Digite o código recebido" />
+              <button type="button" className="btn btn-outline btn-sm" style={{ marginTop: 12 }} disabled={isSubmitting}
+                onClick={() => { setCodeSent(false); setCode(''); setSuccessMsg(''); setErrorMsg(''); }}>Alterar e-mail ou solicitar outro código</button>
             </div>
           )}
 
@@ -243,7 +254,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => 
               : mode === 'signup'
               ? 'Cadastrar Conta'
               : mode === 'forgot'
-              ? 'Enviar Instruções'
+              ? codeSent ? 'Validar código' : 'Enviar recuperação'
               : 'Redefinir Senha'}
           </button>
         </form>
@@ -279,7 +290,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => 
           {(mode === 'forgot' || mode === 'reset') && (
             <button
               type="button"
-              onClick={() => { setMode('login'); setErrorMsg(''); }}
+              onClick={async () => { if (mode === 'reset') await logout(); setMode('login'); setErrorMsg(''); setSuccessMsg(''); setCodeSent(false); }}
               style={{ color: 'var(--primary-color)', fontWeight: 700 }}
             >
               Voltar para o Login

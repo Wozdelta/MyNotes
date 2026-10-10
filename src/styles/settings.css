@@ -1,0 +1,26 @@
+.settings-eyebrow { display: block; color: var(--primary-color); font-size: .625rem; font-weight: 800; letter-spacing: .1em; margin-bottom: 5px; }
+.settings-page .card { border-radius: 20px; min-width: 0; box-shadow: 0 4px 18px rgb(15 23 42 / 3%); }
+.settings-profile { margin-bottom: 14px; background: linear-gradient(120deg, var(--primary-light), var(--bg-card)); }
+.settings-profile-identity { display: flex; gap: 14px; align-items: center; }
+.settings-profile-identity > div:first-child { flex-shrink: 0; }
+.settings-profile-text { min-width: 0; overflow-wrap: anywhere; }
+.settings-profile-text h2 { margin-bottom: 4px; }
+.settings-tutorial { display: flex; align-items: center; gap: 12px; width: 100%; padding: 15px 16px; margin-bottom: 20px; border: 1px solid var(--border-color); border-radius: 16px; background: var(--bg-card); color: var(--text-main); text-align: left; font: inherit; cursor: pointer; }
+.settings-tutorial > span:nth-child(2) { flex: 1; min-width: 0; }
+.settings-tutorial strong { display: block; font-size: .8125rem; }
+.settings-tutorial small { display: block; margin-top: 4px; font-size: .75rem; color: var(--text-muted); }
+.settings-tutorial > svg { color: var(--text-subtle); flex-shrink: 0; }
+.settings-section-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 13px; background: var(--primary-light); color: var(--primary-color); flex-shrink: 0; }
+.settings-section-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+.settings-section-heading h3 { font-size: 1rem; font-weight: 750; }
+.settings-section-heading p { color: var(--text-muted); font-size: .75rem; line-height: 1.6; margin-top: 3px; }
+.settings-security .form-label { font-size: .8125rem; }
+.settings-password-field { position: relative; }
+.settings-password-field .form-input { min-height: 48px; padding-right: 46px; border-radius: 12px; }
+.settings-password-field > button { position: absolute; right: 2px; top: 2px; width: 44px; height: calc(100% - 4px); display: grid; place-items: center; border-radius: 10px; color: var(--text-muted); background: transparent; cursor: pointer; }
+.settings-save { width: 100%; min-height: 46px; border-radius: 12px; margin-top: 4px; }
+.settings-signout { display: flex; align-items: center; gap: 10px; width: 100%; padding: 16px; margin-top: 18px; border: 1px solid color-mix(in srgb, var(--expense-color) 22%, var(--border-color)); border-radius: 14px; background: var(--bg-card); color: var(--expense-color); font: inherit; font-size: .8125rem; font-weight: 600; cursor: pointer; }
+.settings-signout span { flex: 1; text-align: left; }
+.settings-page button:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 3px; }
+@media (hover: hover) { .settings-tutorial:hover, .settings-password-field > button:hover { background: var(--bg-card-hover); } .settings-signout:hover { background: color-mix(in srgb, var(--expense-color) 6%, var(--bg-card)); } }
+@media (max-width: 600px) { .settings-page .card { padding: 18px 16px; } .settings-password-field .form-input { font-size: 16px; } }

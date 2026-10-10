@@ -2,6 +2,22 @@ export type TransactionType = 'income' | 'expense';
 
 export type TransactionStatus = 'pending' | 'completed' | 'cancelled';
 
+export interface SalaryHoliday {
+  source?: 'feriados.dev' | 'brasilapi';
+  date: string; // YYYY-MM-DD; annual entries match month/day in subsequent years
+  name: string;
+  scope: 'state' | 'municipal' | 'national';
+  annual: boolean;
+}
+export interface SalarySchedule {
+  location?: { city: string; state: string; years: number[] };
+  mode: 'fixed' | 'business';
+  day: number;
+  businessDay: 1 | 2 | 3 | 4 | 5 | 10 | 'penultimate' | 'last';
+  advance: boolean;
+  holidays: SalaryHoliday[];
+}
+
 export interface UserProfile {
   id: string;
   email: string;
@@ -42,6 +58,8 @@ export interface Category {
 }
 
 export interface Transaction {
+  salary_schedule?: SalarySchedule | null;
+  salary_month?: string | null; // Reference month (YYYY-MM), even when payment is advanced into previous month
   id: string;
   user_id: string;
   account_id: string;
@@ -64,6 +82,7 @@ export interface Transaction {
 export type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 export interface Recurrence {
+  salary_schedule?: SalarySchedule | null;
   id: string;
   user_id: string;
   account_id: string;

@@ -5,6 +5,7 @@ import {
   calculateActualResult,
   calculateExpectedResult,
   calculateFinancialSummary,
+  calculatePaymentCoverage,
   calculateUpcomingNonSalaryIncome,
   buildUpcomingExpenseProjection,
   calculateTotalCurrentBalance,
@@ -17,6 +18,19 @@ import {
 } from '../utils/finance';
 
 describe('Centralized Finance Engine Tests', () => {
+  it('usa as entradas futuras para calcular se ainda falta dinheiro', () => {
+    expect(calculatePaymentCoverage(422.92, 926.20, 684.15)).toEqual({
+      amountMissing: 0,
+      amountLeft: 664.97,
+      balanceAfterPayments: 664.97
+    });
+    expect(calculatePaymentCoverage(100, 50, 200)).toEqual({
+      amountMissing: 50,
+      amountLeft: 0,
+      balanceAfterPayments: -50
+    });
+  });
+
   it('converte centavos e float sem erros de ponto flutuante', () => {
     // 0.1 + 0.2 em float comum é 0.30000000000000004
     const cents1 = toCents(0.1);

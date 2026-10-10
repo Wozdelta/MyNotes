@@ -16,6 +16,19 @@ export function fromCents(cents: number): number {
   return Number((cents / 100).toFixed(2));
 }
 
+export function calculatePaymentCoverage(
+  currentBalance: number,
+  upcomingIncome: number,
+  totalToPay: number
+): { amountMissing: number; amountLeft: number; balanceAfterPayments: number } {
+  const balanceAfterPaymentsCents = toCents(currentBalance) + toCents(upcomingIncome) - toCents(totalToPay);
+  return {
+    amountMissing: fromCents(Math.max(0, -balanceAfterPaymentsCents)),
+    amountLeft: fromCents(Math.max(0, balanceAfterPaymentsCents)),
+    balanceAfterPayments: fromCents(balanceAfterPaymentsCents)
+  };
+}
+
 /**
  * Formata um valor numérico para a moeda brasileira: R$ 1.234,56
  */
@@ -274,20 +287,16 @@ export function calculateFinancialSummary(
 }
 
 /**
- * Calcula somente entradas que ainda podem cair no período do painel.
- * Recorrências salariais ficam fora deste indicador e ocorrências já materializadas
- * não são somadas duas vezes.
+ * Calcula as entradas que ainda vão cair no período do painel,
+ * incluindo salários e outras rendas, para projetar a cobertura de pagamentos.
  */
-export function calculateUpcomingNonSalaryIncome(
+export function calculateUpcomingIncome(
   transactions: Transaction[],
   recurrences: Recurrence[],
   startDate: string,
   endDate: string,
   today: string = todayString()
 ): number {
-  const salaryRecurrenceIds = new Set(
-    recurrences.filter(recurrence => Boolean(recurrence.salary_schedule)).map(recurrence => recurrence.id)
-  );
   const existingOccurrenceKeys = new Set(
     transactions
       .filter(transaction => transaction.recurrence_id)
@@ -296,12 +305,9 @@ export function calculateUpcomingNonSalaryIncome(
 
   let cents = 0;
   for (const transaction of transactions) {
-    const isSalary = Boolean(transaction.salary_schedule) ||
-      Boolean(transaction.recurrence_id && salaryRecurrenceIds.has(transaction.recurrence_id));
     if (
       transaction.type === 'income' &&
       transaction.status === 'pending' &&
-      !isSalary &&
       transaction.expected_date >= today &&
       isDateBetween(transaction.expected_date, startDate, endDate)
     ) {
@@ -310,7 +316,7 @@ export function calculateUpcomingNonSalaryIncome(
   }
 
   for (const recurrence of recurrences) {
-    if (!recurrence.is_active || recurrence.type !== 'income' || recurrence.salary_schedule) continue;
+    if (!recurrence.is_active || recurrence.type !== 'income') continue;
     const dates = generateRecurrenceDates(recurrence, endDate);
     for (const date of dates) {
       if (date < today || !isDateBetween(date, startDate, endDate)) continue;

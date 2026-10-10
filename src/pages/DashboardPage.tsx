@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { formatDateBR, getDaysInMonth, padZero, todayString, WEEKDAY_SHORT_NAMES_BR } from '../utils/date';
-import { buildUpcomingExpenseProjection, calculateTotalCurrentBalance, calculateUpcomingNonSalaryIncome, formatCurrency, fromCents, isOverdue, isVirtualRecurrenceTransaction, toCents } from '../utils/finance';
+import { buildUpcomingExpenseProjection, calculatePaymentCoverage, calculateTotalCurrentBalance, calculateUpcomingIncome, formatCurrency, fromCents, isOverdue, isVirtualRecurrenceTransaction, toCents } from '../utils/finance';
 
 interface DashboardPageProps {
   onNavigateToTransactions: (filterType?: string) => void;
@@ -52,16 +52,18 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   const accountMap = useMemo(() => new Map(accounts.map(account => [account.id, account.name])), [accounts]);
   const nextPayment = pendingExpenses[0];
   const totalToPay = fromCents(pendingExpenses.reduce((total, transaction) => total + toCents(transaction.amount), 0));
-  const amountMissing = Math.max(0, totalToPay - summary.currentBalance);
-  const amountLeft = Math.max(0, summary.currentBalance - totalToPay);
-  const upcomingIncome = useMemo(() => calculateUpcomingNonSalaryIncome(
+  const upcomingIncome = useMemo(() => calculateUpcomingIncome(
     transactions,
     recurrences,
     periodFilter.startDate,
     periodFilter.endDate,
     today
   ), [transactions, recurrences, periodFilter, today]);
-  const balanceAfterMonth = summary.currentBalance + upcomingIncome - totalToPay;
+  const { amountMissing, amountLeft, balanceAfterPayments: balanceAfterMonth } = calculatePaymentCoverage(
+    summary.currentBalance,
+    upcomingIncome,
+    totalToPay
+  );
 
   const handleCompletePayment = async () => {
     if (!nextPayment) return;
@@ -316,7 +318,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                 <h3>Resumo do período</h3>
                 <button onClick={() => onNavigateToTransactions('all')}>Ver extrato</button>
               </div>
-              <div className="dashboard-summary-row"><span>Entradas pendentes (sem salários)</span><strong>{formatCurrency(upcomingIncome)}</strong></div>
+              <div className="dashboard-summary-row"><span>Entradas pendentes</span><strong>{formatCurrency(upcomingIncome)}</strong></div>
               <div className="dashboard-summary-row"><span>Despesas pendentes</span><strong>{formatCurrency(totalToPay)}</strong></div>
               <div className="dashboard-summary-row"><span>Resultado previsto</span><strong>{formatCurrency(summary.expectedResult)}</strong></div>
               <div className="dashboard-summary-row"><span>Saldo atual</span><strong>{formatCurrency(summary.currentBalance)}</strong></div>

@@ -20,6 +20,7 @@ import { RecurrencesPage } from './pages/RecurrencesPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { TransactionsPage } from './pages/TransactionsPage';
 import { FinancialNote, Recurrence, Transaction, TransactionType } from './types';
+import { supabaseConfigurationError } from './services/supabase';
 
 const MainApp: React.FC = () => {
   const { user, isAuthenticated, isLoading, isSupabaseOnline, isPasswordRecovery } = useFinance();
@@ -71,6 +72,23 @@ const MainApp: React.FC = () => {
             to { transform: rotate(360deg); }
           }
         `}</style>
+      </div>
+    );
+  }
+
+  if (!isSupabaseOnline) {
+    return (
+      <div className="supabase-required-page">
+        <div className="card supabase-required-card">
+          <div className="supabase-required-icon">!</div>
+          <h1>Conecte o Supabase</h1>
+          <p>{supabaseConfigurationError}</p>
+          <div className="supabase-required-variables">
+            <code>VITE_SUPABASE_URL</code>
+            <code>VITE_SUPABASE_ANON_KEY</code>
+          </div>
+          <small>Configure para Production, Preview e Development e depois faça um novo deploy.</small>
+        </div>
       </div>
     );
   }

@@ -9,7 +9,7 @@ import {
   isLeapYear,
   parseDateBR
 } from '../utils/date';
-import { filterNewOccurrences, generateRecurrenceDates } from '../utils/recurrenceEngine';
+import { filterNewOccurrences, generateRecurrenceDates, synchronizePendingSalaryOccurrence } from '../utils/recurrenceEngine';
 
 describe('Date & Recurrence Engine Tests', () => {
   it('identifica corretamente anos bissextos', () => {
@@ -151,5 +151,44 @@ describe('Date & Recurrence Engine Tests', () => {
 
     // Deve conter apenas Março e Abril (Janeiro já existe, Fevereiro foi excluída)
     expect(toInstantiate).toEqual(['2026-03-15', '2026-04-15']);
+  });
+
+  it('sincroniza uma ocorrência pendente com a regra de salário editada', () => {
+    const recurrence: Recurrence = {
+      id: 'rec-salary', user_id: 'u-1', account_id: 'a-1', category_id: 'salary',
+      type: 'income', description: 'Caju', amount: 581.46, frequency: 'monthly',
+      interval_step: 1, start_date: '2026-10-10', is_active: true,
+      salary_schedule: { mode: 'business', day: 1, businessDay: 'last', advance: false, holidays: [] },
+      created_at: '', updated_at: ''
+    };
+    const stale: Transaction = {
+      id: 'tx-1', user_id: 'u-1', account_id: 'a-1', category_id: 'salary',
+      type: 'expense', description: 'Caju', amount: 581.46, expected_date: '2026-10-10',
+      status: 'pending', recurrence_id: recurrence.id, created_at: '', updated_at: ''
+    };
+
+    const synchronized = synchronizePendingSalaryOccurrence(stale, recurrence);
+
+    expect(synchronized.type).toBe('income');
+    expect(synchronized.expected_date).toBe('2026-10-30');
+    expect(synchronized.salary_month).toBe('2026-10');
+  });
+
+  it('não altera o histórico de salários concluídos', () => {
+    const recurrence: Recurrence = {
+      id: 'rec-salary', user_id: 'u-1', account_id: 'a-1', category_id: 'salary',
+      type: 'income', description: 'Salário', amount: 1000, frequency: 'monthly',
+      interval_step: 1, start_date: '2026-10-01', is_active: true,
+      salary_schedule: { mode: 'business', day: 1, businessDay: 'last', advance: false, holidays: [] },
+      created_at: '', updated_at: ''
+    };
+    const completed: Transaction = {
+      id: 'tx-1', user_id: 'u-1', account_id: 'a-1', category_id: 'salary',
+      type: 'expense', description: 'Salário', amount: 1000, expected_date: '2026-10-10',
+      effective_date: '2026-10-10', status: 'completed', recurrence_id: recurrence.id,
+      created_at: '', updated_at: ''
+    };
+
+    expect(synchronizePendingSalaryOccurrence(completed, recurrence)).toBe(completed);
   });
 });

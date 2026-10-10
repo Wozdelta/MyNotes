@@ -121,6 +121,12 @@ VITE_SUPABASE_ANON_KEY=sua-chave-publica-anon-aqui
 
 > **Atenção:** Nunca adicione o prefixo `VITE_` à sua chave secreta (`SUPABASE_SECRET` / `service_role`). Utilize exclusivamente a chave pública `anon` no cliente.
 
+#### Configuração na Vercel
+
+O arquivo `.env` existe apenas na máquina local e não é enviado ao Git. No projeto da Vercel, abra **Settings → Environment Variables** e cadastre as duas variáveis acima para **Production**, **Preview** e **Development**. Depois, faça um novo deploy para que o Vite incorpore os valores no build.
+
+O aplicativo não possui fallback de dados no navegador. Se essas variáveis estiverem ausentes, ele bloqueia o acesso e informa o erro de configuração, evitando que informações pareçam salvas sem chegarem ao Supabase.
+
 ### 2. Executar o Script SQL
 1. Acesse o painel do seu projeto no [Supabase](https://supabase.com).
 2. Vá em **SQL Editor** > **New Query**.

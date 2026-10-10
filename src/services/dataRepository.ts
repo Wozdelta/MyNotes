@@ -8,10 +8,9 @@ import {
   Transfer,
   UserProfile
 } from '../types';
-import { todayString } from '../utils/date';
 import { salaryDate, validateSalarySchedule } from '../utils/salarySchedule';
-import { generateRecurrenceDates, instantiateOccurrences } from '../utils/recurrenceEngine';
-import { DEFAULT_CATEGORIES, generateUUID, isSupabaseConfigured, supabase } from './supabase';
+import { generateRecurrenceDates, instantiateOccurrences, synchronizePendingSalaryOccurrence } from '../utils/recurrenceEngine';
+import { DEFAULT_CATEGORIES, generateUUID, isSupabaseConfigured, supabase, supabaseConfigurationError } from './supabase';
 
 interface LocalDBState {
   accounts: Account[];
@@ -23,9 +22,8 @@ interface LocalDBState {
   notes: FinancialNote[];
 }
 
-const STORAGE_KEY_PREFIX = 'financas_pro_data_';
-
-const memoryStore = new Map<string, string>();
+// Armazenamento efêmero exclusivo dos testes automatizados. Nunca é usado no navegador.
+const testMemoryStore = new Map<string, LocalDBState>();
 
 function throwSupabaseError(operation: string, error: unknown): never {
   const details = error && typeof error === 'object' && 'message' in error
@@ -160,62 +158,42 @@ function anotacaoParaBanco(value: Registro): Registro {
   return row;
 }
 
-function getStorageItem(key: string): string | null {
-  if (typeof localStorage !== 'undefined') {
-    return localStorage.getItem(key);
-  }
-  return memoryStore.get(key) || null;
+function localPersistenceDisabled(): Error {
+  return new Error(supabaseConfigurationError || 'O Supabase é obrigatório para acessar os dados financeiros.');
 }
 
-function setStorageItem(key: string, value: string): void {
-  if (typeof localStorage !== 'undefined') {
-    localStorage.setItem(key, value);
-  } else {
-    memoryStore.set(key, value);
-  }
-}
-
-function getLocalState(userId: string): LocalDBState {
-  const raw = getStorageItem(`${STORAGE_KEY_PREFIX}${userId}`);
-  if (raw) {
-    try {
-      return JSON.parse(raw);
-    } catch {
-      // ignore
-    }
-  }
-
-  const defaultCategories: Category[] = DEFAULT_CATEGORIES.map(c => ({
-    id: generateUUID(),
-    user_id: userId,
-    name: c.name,
-    type: c.type,
-    color: c.color,
-    is_archived: false,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  }));
-
+function getLocalState(_userId: string): LocalDBState {
+  if (import.meta.env.MODE !== 'test') throw localPersistenceDisabled();
+  const existing = testMemoryStore.get(_userId);
+  if (existing) return existing;
+  const now = new Date().toISOString();
   const state: LocalDBState = {
     accounts: [],
-    categories: defaultCategories,
+    categories: DEFAULT_CATEGORIES.map(category => ({
+      ...category,
+      id: generateUUID(),
+      user_id: _userId,
+      is_archived: false,
+      created_at: now,
+      updated_at: now
+    })),
     transactions: [],
     recurrences: [],
     recurrenceExceptions: [],
     transfers: [],
     notes: []
   };
-
-  saveLocalState(userId, state);
+  testMemoryStore.set(_userId, state);
   return state;
 }
 
-function saveLocalState(userId: string, state: LocalDBState) {
-  setStorageItem(`${STORAGE_KEY_PREFIX}${userId}`, JSON.stringify(state));
+function saveLocalState(_userId: string, _state: LocalDBState): void {
+  if (import.meta.env.MODE !== 'test') throw localPersistenceDisabled();
+  testMemoryStore.set(_userId, _state);
 }
 
 // -----------------------------------------------------------------------------
-// REPOSITÓRIO UNIFICADO (SUPABASE COM LOCAL FALLBACK AUTOMÁTICO)
+// REPOSITÓRIO SUPABASE. Persistência financeira local é proibida.
 // -----------------------------------------------------------------------------
 
 export class DataRepository {
@@ -556,6 +534,60 @@ export class DataRepository {
       return state.recurrences[idx];
     }
     throw new Error('Recorrência não encontrada');
+  }
+
+  /**
+   * Repara ocorrências de salário criadas antes de uma alteração na recorrência.
+   * Isso evita que uma receita continue aparecendo como despesa ou na data antiga.
+   */
+  async synchronizePendingSalaryOccurrences(
+    recurrences: Recurrence[],
+    currentTransactions?: Transaction[]
+  ): Promise<Transaction[]> {
+    const transactions = currentTransactions || await this.getTransactions();
+    const recurrenceMap = new Map(recurrences.map(recurrence => [recurrence.id, recurrence]));
+    const changed: Transaction[] = [];
+
+    const synchronized = transactions.map(transaction => {
+      const recurrence = transaction.recurrence_id
+        ? recurrenceMap.get(transaction.recurrence_id)
+        : undefined;
+      if (!recurrence) return transaction;
+      const next = synchronizePendingSalaryOccurrence(transaction, recurrence);
+      if (next !== transaction) changed.push(next);
+      return next;
+    });
+
+    if (changed.length === 0) return synchronized;
+
+    const now = new Date().toISOString();
+    if (isSupabaseConfigured && supabase) {
+      for (const transaction of changed) {
+        const patch = lancamentoParaBanco({
+          type: transaction.type,
+          expected_date: transaction.expected_date,
+          salary_schedule: transaction.salary_schedule,
+          salary_month: transaction.salary_month,
+          updated_at: now
+        });
+        const { error } = await supabase
+          .from('lancamentos')
+          .update(patch)
+          .eq('id', transaction.id)
+          .eq('usuario_id', this.userId)
+          .eq('situacao', 'pendente');
+        if (error) throwSupabaseError('Erro ao sincronizar ocorrência de salário', error);
+      }
+      return synchronized.map(transaction => changed.some(item => item.id === transaction.id)
+        ? { ...transaction, updated_at: now }
+        : transaction);
+    }
+
+    const state = getLocalState(this.userId);
+    const synchronizedMap = new Map(synchronized.map(transaction => [transaction.id, transaction]));
+    state.transactions = state.transactions.map(transaction => synchronizedMap.get(transaction.id) || transaction);
+    saveLocalState(this.userId, state);
+    return synchronized;
   }
 
   // TRANSFERS (Atômica)

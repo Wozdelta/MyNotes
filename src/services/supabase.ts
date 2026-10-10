@@ -23,6 +23,10 @@ export const isSupabaseConfigured = Boolean(
   supabaseAnonKey !== 'sua-chave-publica-anon-aqui'
 );
 
+export const supabaseConfigurationError = isSupabaseConfigured
+  ? null
+  : 'Supabase não configurado. Adicione VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY nas variáveis de ambiente da Vercel e publique novamente.';
+
 // Capture before the SDK consumes the recovery fragment.
 export const hasRecoveryRedirect = typeof window !== 'undefined' &&
   new URLSearchParams(window.location.hash.slice(1)).get('type') === 'recovery';

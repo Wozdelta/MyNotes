@@ -129,3 +129,41 @@ export function instantiateOccurrences(
     };
   });
 }
+
+/**
+ * Mantém ocorrências pendentes de salário alinhadas à regra recorrente.
+ * Lançamentos já concluídos/cancelados representam histórico e nunca são alterados.
+ */
+export function synchronizePendingSalaryOccurrence(
+  transaction: Transaction,
+  recurrence: Recurrence
+): Transaction {
+  if (
+    transaction.status !== 'pending' ||
+    transaction.recurrence_id !== recurrence.id ||
+    !recurrence.salary_schedule
+  ) {
+    return transaction;
+  }
+
+  const salaryMonth = transaction.salary_month || transaction.expected_date.slice(0, 7);
+  const expectedDate = salaryDate(salaryMonth, recurrence.salary_schedule);
+  const scheduleUnchanged = JSON.stringify(transaction.salary_schedule || null) === JSON.stringify(recurrence.salary_schedule);
+
+  if (
+    transaction.type === recurrence.type &&
+    transaction.expected_date === expectedDate &&
+    transaction.salary_month === salaryMonth &&
+    scheduleUnchanged
+  ) {
+    return transaction;
+  }
+
+  return {
+    ...transaction,
+    type: recurrence.type,
+    expected_date: expectedDate,
+    salary_schedule: recurrence.salary_schedule,
+    salary_month: salaryMonth
+  };
+}

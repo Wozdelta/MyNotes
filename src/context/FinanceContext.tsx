@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { DataRepository } from '../services/dataRepository';
-import { hasRecoveryRedirect, isSupabaseConfigured, supabase } from '../services/supabase';
+import { hasRecoveryRedirect, isSupabaseConfigured, supabase, supabaseConfigurationError } from '../services/supabase';
 import {
   Account,
   Category,
@@ -144,9 +144,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         repository.getTransfers(),
         repository.getNotes()
       ]);
+      const synchronizedTransactions = await repository.synchronizePendingSalaryOccurrences(recs, txs);
       setAccounts(accs);
       setCategories(cats);
-      setTransactions(txs);
+      setTransactions(synchronizedTransactions);
       setRecurrences(recs);
       setTransfers(trs);
       setNotes(nts);
@@ -177,20 +178,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         } catch (e) {
           console.error(e);
         }
-      } else {
-        // Modo demonstração local direto e funcional
-        if (mounted) {
-          const savedMock = localStorage.getItem('financas_pro_active_user');
-          if (savedMock) {
-            try {
-              setUser(JSON.parse(savedMock));
-            } catch {
-              setUser(null);
-            }
-          } else {
-            setUser(null);
-          }
-        }
+      } else if (mounted) {
+        setUser(null);
       }
 
       if (mounted) {
@@ -238,7 +227,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const login = async (email: string, pass: string) => {
     setIsSubmitting(true);
     try {
-      if (isSupabaseConfigured && supabase) {
+      if (supabase) {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
         if (error) throw error;
         if (data.user) {
@@ -249,17 +238,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           });
           showToast('Login realizado com sucesso!');
         }
-      } else {
-        // Mock login
-        const loggedUser: UserProfile = {
-          id: 'user_' + btoa(email).substring(0, 12),
-          email,
-          full_name: email.split('@')[0]
-        };
-        setUser(loggedUser);
-        localStorage.setItem('financas_pro_active_user', JSON.stringify(loggedUser));
-        showToast('Conectado em modo local.');
-      }
+      } else throw new Error(supabaseConfigurationError || 'Supabase indisponível.');
     } catch (err: any) {
       showToast(err.message || 'Falha ao autenticar', 'error');
       throw err;
@@ -279,17 +258,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         });
         if (error) throw error;
         showToast('Cadastro realizado! Verifique seu e-mail caso a confirmação esteja ativada.');
-      } else {
-        const newUser: UserProfile = {
-          id: 'user_' + btoa(email).substring(0, 12),
-          email,
-          full_name: name || email.split('@')[0]
-        };
-        localStorage.setItem(`mynotes_setup_${newUser.id}`, 'pending');
-        setUser(newUser);
-        localStorage.setItem('financas_pro_active_user', JSON.stringify(newUser));
-        showToast('Conta criada com sucesso!');
-      }
+      } else throw new Error(supabaseConfigurationError || 'Supabase indisponível.');
     } catch (err: any) {
       showToast(err.message || 'Falha ao cadastrar', 'error');
       throw err;
@@ -299,16 +268,14 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const logout = async () => {
-    if (isSupabaseConfigured && supabase) {
-      await supabase.auth.signOut();
-    }
-    localStorage.removeItem('financas_pro_active_user');
+    if (!supabase) throw new Error(supabaseConfigurationError || 'Supabase indisponível.');
+    await supabase.auth.signOut();
     setUser(null);
     showToast('Você saiu com segurança.');
   };
 
   const resetPassword = async (email: string) => {
-    if (!supabase) throw new Error('Recuperação por e-mail indisponível no modo local.');
+    if (!supabase) throw new Error(supabaseConfigurationError || 'Supabase indisponível.');
     setIsSubmitting(true);
     try {
     if (isSupabaseConfigured && supabase) {
@@ -322,7 +289,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const verifyRecoveryCode = async (email: string, code: string) => {
-    if (!supabase) throw new Error('Recuperação indisponível no modo local.');
+    if (!supabase) throw new Error(supabaseConfigurationError || 'Supabase indisponível.');
     if (!/^\d{6,10}$/.test(code)) throw new Error('Informe o código completo recebido por e-mail.');
     setIsSubmitting(true);
     try {
@@ -342,7 +309,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         throw new Error('A nova senha deve ser diferente da senha atual');
       }
 
-      if (isSupabaseConfigured && supabase) {
+      if (supabase) {
         const { data: { user: authUser }, error: userError } = await supabase.auth.getUser();
         if (userError || !authUser?.email) {
           throw new Error('Não foi possível confirmar o usuário conectado');
@@ -358,7 +325,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         const { error: updateError } = await supabase.auth.updateUser({ password: newPass });
         if (updateError) throw updateError;
-      }
+      } else throw new Error(supabaseConfigurationError || 'Supabase indisponível.');
 
       showToast('Senha atualizada com sucesso!');
     } catch (err: any) {
@@ -567,6 +534,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       const updated = await repository.updateRecurrence(id, updates);
       setRecurrences(prev => prev.map(r => (r.id === id ? updated : r)));
+      const synchronizedTransactions = await repository.synchronizePendingSalaryOccurrences(
+        recurrences.map(recurrence => recurrence.id === id ? updated : recurrence),
+        transactions
+      );
+      setTransactions(synchronizedTransactions);
       showToast('Recorrência atualizada com sucesso!');
       return updated;
     } catch (err: any) {

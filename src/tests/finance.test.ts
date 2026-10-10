@@ -6,7 +6,7 @@ import {
   calculateExpectedResult,
   calculateFinancialSummary,
   calculatePaymentCoverage,
-  calculateUpcomingNonSalaryIncome,
+  calculateUpcomingIncome,
   buildUpcomingExpenseProjection,
   calculateTotalCurrentBalance,
   comparePeriods,
@@ -229,14 +229,14 @@ describe('Centralized Finance Engine Tests', () => {
       salary_schedule: { mode: 'business', day: 1, businessDay: 'last', advance: false, holidays: [] }
     };
 
-    expect(calculateUpcomingNonSalaryIncome([], [base, salary], '2026-10-01', '2026-10-31', '2026-10-10')).toBe(926.20);
+    expect(calculateUpcomingIncome([], [base, salary], '2026-10-01', '2026-10-31', '2026-10-10')).toBe(2083.56);
 
     const generated: Transaction = {
       id: 'tx-college', user_id: 'u-1', account_id: 'a-1', category_id: 'extra',
       type: 'income', description: 'Faculdade', amount: 926.20, expected_date: '2026-10-15',
       status: 'pending', recurrence_id: base.id, created_at: '', updated_at: ''
     };
-    expect(calculateUpcomingNonSalaryIncome([generated], [base], '2026-10-01', '2026-10-31', '2026-10-10')).toBe(926.20);
+    expect(calculateUpcomingIncome([generated], [base], '2026-10-01', '2026-10-31', '2026-10-10')).toBe(926.20);
   });
 
   it('inclui despesa recorrente ainda não materializada na previsão', () => {
